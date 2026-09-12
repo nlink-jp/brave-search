@@ -14,8 +14,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   (searches, tokens, USD). research defaults are tighter than the API's;
   its progress is printed to stderr while it runs; its HTTP deadline derives
   from `max_seconds`.
-- `[api] answers_api_key` / `BRAVE_SEARCH_ANSWERS_API_KEY`, sent to the
-  Answers endpoint when set, for the case where Brave issues one key per plan.
+- `[api] answers_api_key` / `BRAVE_SEARCH_ANSWERS_API_KEY`: Brave issues one
+  key per plan, so the Answers endpoint has its own required key and the
+  Search key is never sent to it.
 - `web` / `web_search`: Brave Web Search with count, offset, country,
   search language, freshness, safesearch and extra snippets; compact result
   shape with `--full` pass-through on the CLI; every result carries `meta`

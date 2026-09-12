@@ -145,7 +145,7 @@ Tool errors come back as `isError: true` with a JSON body
 | Code | Meaning | What to do |
 |---|---|---|
 | `invalid_arguments` | An argument is missing, misspelled, or out of range. | Fix the call. Ranges are in this manual; nothing was sent upstream. |
-| `missing_api_key` | No API key is configured. | The operator sets `[api] api_key` in the config file or `BRAVE_SEARCH_API_KEY`. |
+| `missing_api_key` | No API key is configured for this endpoint. Nothing was sent. | Brave issues one key per plan. The operator sets `[api] api_key` (Search plan: web_search, llm_context) or `[api] answers_api_key` (Answers plan: answer, research) in the config file, or `BRAVE_SEARCH_API_KEY` / `BRAVE_SEARCH_ANSWERS_API_KEY`. The message names the one that is missing. |
 | `unauthorized` | Brave rejected the key (401). | The operator checks the key with `brave-search auth check`. Do not retry. |
 | `plan_not_subscribed` | The key is valid but the endpoint's plan is not active (403). | Tell the operator which plan (Search or Answers) the tool needs. Do not retry. |
 | `rate_limited` | Too many requests (429). `details.reset_seconds` says how long to wait. | Wait that long, then retry once. Do not loop. |

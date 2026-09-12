@@ -77,7 +77,7 @@ claude mcp add brave-search -- /path/to/brave-search mcp
 ## セットアップ
 
 1. <https://api-dashboard.search.brave.com/> で契約し — **Search** プランが `web` と `context`、**Answers** プランが `answer` と `research` を担います — API キーを作成します。
-2. キーを `~/.config/brave-search/config.toml`（[config.example.toml](config.example.toml) 参照）か `BRAVE_SEARCH_API_KEY` に置きます。Answers プランに別のキーが発行されている場合は `answers_api_key`（または `BRAVE_SEARCH_ANSWERS_API_KEY`）も設定します。キーはフラグでは受け付けません。
+2. Brave は**プランごとに別のキー**を発行します。Search のキーを `~/.config/brave-search/config.toml` の `api_key`（または `BRAVE_SEARCH_API_KEY`）に、Answers のキーを `answers_api_key`（または `BRAVE_SEARCH_ANSWERS_API_KEY`）に置きます — [config.example.toml](config.example.toml) 参照。キーはフラグでは受け付けません。
 3. `brave-search auth check` で、そのキーがどのプランを使えるか確認できます。
 
 ## 利用規約がこのツールに課すこと

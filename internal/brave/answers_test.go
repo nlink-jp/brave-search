@@ -47,7 +47,9 @@ func serveStream(t *testing.T, stream string) (*Client, *capture, *[]byte) {
 		_, _ = w.Write([]byte(stream))
 	}))
 	t.Cleanup(srv.Close)
-	return New(srv.URL, "search-key", "", 5*time.Second, "t"), cap, &body
+	c := New(srv.URL, "search-key", "", 5*time.Second, "t")
+	c.AnswersAPIKey = "answers-key"
+	return c, cap, &body
 }
 
 func TestAnswerSingleSearch(t *testing.T) {
@@ -137,13 +139,17 @@ func TestAnswerResearchMode(t *testing.T) {
 	}
 }
 
-func TestAnswersKeyFallsBackToTheSearchKey(t *testing.T) {
+// Brave issues one key per plan, so the Search key is never sent to
+// Answers: without an Answers key nothing is sent at all.
+func TestAnswersNeedsItsOwnKey(t *testing.T) {
 	c, cap, _ := serveStream(t, singleStream)
-	if _, _, err := c.Answer(context.Background(), AnswerParams{Question: "q"}); err != nil {
-		t.Fatal(err)
+	c.AnswersAPIKey = ""
+	_, _, err := c.Answer(context.Background(), AnswerParams{Question: "q"})
+	if Code(err) != CodeMissingAPIKey || !strings.Contains(err.Error(), "answers_api_key") {
+		t.Fatalf("err = %v", err)
 	}
-	if cap.header.Get("X-Subscription-Token") != "search-key" {
-		t.Errorf("token = %q", cap.header.Get("X-Subscription-Token"))
+	if cap.method != "" {
+		t.Error("a request was sent without an Answers key")
 	}
 	c.AnswersAPIKey = "answers-key"
 	if _, _, err := c.Answer(context.Background(), AnswerParams{Question: "q"}); err != nil {
@@ -174,6 +180,7 @@ func TestStreamErrorsAreSurfaced(t *testing.T) {
 
 func TestAnswerStatusErrorsMapLikeSearch(t *testing.T) {
 	c, _ := serve(t, 403, `{"error":{"code":"SUBSCRIPTION_PLAN","detail":"answers not subscribed"}}`, nil)
+	c.AnswersAPIKey = "answers-key"
 	_, _, err := c.Answer(context.Background(), AnswerParams{Question: "q"})
 	if Code(err) != CodePlanNotSubscribed || !strings.Contains(err.Error(), "answers not subscribed") {
 		t.Errorf("err = %v", err)

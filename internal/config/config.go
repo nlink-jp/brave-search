@@ -73,7 +73,7 @@ type Answers struct {
 // Config holds resolved runtime settings.
 type Config struct {
 	APIKey        string
-	AnswersAPIKey string // sent to /chat/completions when set; else APIKey
+	AnswersAPIKey string // the Answers plan has its own key; sent to /chat/completions
 	BaseURL       string
 	APIVersion    string // Api-Version header; "" sends none (latest)
 	Timeout       time.Duration

@@ -49,6 +49,7 @@ func startAnswersUpstream(t *testing.T, u *answersUpstream) {
 	t.Cleanup(srv.Close)
 	t.Setenv(config.EnvBaseURL, srv.URL)
 	t.Setenv(config.EnvAPIKey, "search-key")
+	t.Setenv(config.EnvAnswersAPIKey, "answers-key")
 }
 
 func TestAnswerTextAndJSON(t *testing.T) {
@@ -110,16 +111,24 @@ func TestResearchStreamsProgressToStderr(t *testing.T) {
 	}
 }
 
-func TestAnswersKeyFromConfigReachesTheRequest(t *testing.T) {
+func TestAnswersUsesItsOwnKeyAndRefusesWithoutIt(t *testing.T) {
 	u := &answersUpstream{}
 	startAnswersUpstream(t, u)
-	t.Setenv(config.EnvAnswersAPIKey, "answers-key")
 	var stdout, stderr bytes.Buffer
 	if code := run([]string{"answer", "q"}, "t", nil, &stdout, &stderr); code != exitOK {
 		t.Fatalf("exit %d: %s", code, stderr.String())
 	}
 	if u.token != "answers-key" {
 		t.Errorf("token = %q", u.token)
+	}
+	t.Setenv(config.EnvAnswersAPIKey, "")
+	u.token = ""
+	stderr.Reset()
+	if code := run([]string{"answer", "q"}, "t", nil, &stdout, &stderr); code != exitError {
+		t.Errorf("exit %d, want %d", code, exitError)
+	}
+	if u.token != "" || !strings.Contains(stderr.String(), "BRAVE_SEARCH_ANSWERS_API_KEY") {
+		t.Errorf("sent=%q stderr=%q", u.token, stderr.String())
 	}
 }
 

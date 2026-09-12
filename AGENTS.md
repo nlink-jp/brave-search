@@ -87,8 +87,10 @@ docs/{en,ja}/                RFP (the design record) + project ADRs
 Nothing has been measured against the live API yet. Four open questions are
 answered at the start of Phase 1 and recorded here with a date:
 
-1. Does one key span the Search and Answers plans, or does each plan issue
-   its own key?
+1. ~~Does one key span the Search and Answers plans?~~ **Answered
+   2026-09-12 (operator, from the account dashboard): one key per plan.**
+   `api_key` serves web/context, `answers_api_key` serves answer/research,
+   and neither is sent to the other's endpoint.
 2. Does `/chat/completions` return `X-RateLimit-*` headers?
 3. Do Answers / LLM Context fetch target pages live, or serve from Brave's
    index? (Decides the mcp-tactics tier.)

@@ -25,9 +25,10 @@ type Client struct {
 	UserAgent  string
 	HTTP       Doer
 
-	// AnswersAPIKey, when set, is sent to /chat/completions instead of
-	// APIKey. Whether Brave issues one key per plan or one key for all is
-	// unverified; this keeps both cases working.
+	// AnswersAPIKey is sent to /chat/completions. Brave issues one key per
+	// plan (observed on the account dashboard, 2026-09-12): the Search
+	// plan's key does not serve the Answers plan, so there is no fallback
+	// from one to the other.
 	AnswersAPIKey string
 }
 
@@ -54,12 +55,16 @@ func (c *Client) WithTimeout(d time.Duration) *Client {
 // HasKey reports whether the client is authenticated for the Search endpoints.
 func (c *Client) HasKey() bool { return c.APIKey != "" }
 
-// keyFor returns the key to send to an endpoint.
-func (c *Client) keyFor(endpoint string) string {
-	if endpoint == answersEndpoint && c.AnswersAPIKey != "" {
-		return c.AnswersAPIKey
+// HasAnswersKey reports whether the client is authenticated for Answers.
+func (c *Client) HasAnswersKey() bool { return c.AnswersAPIKey != "" }
+
+// keyFor returns the key an endpoint needs, and the setting an operator has
+// to fill when it is missing.
+func (c *Client) keyFor(endpoint string) (key, setting string) {
+	if endpoint == answersEndpoint {
+		return c.AnswersAPIKey, "[api] answers_api_key in the config file or BRAVE_SEARCH_ANSWERS_API_KEY (the Answers plan has its own key)"
 	}
-	return c.APIKey
+	return c.APIKey, "[api] api_key in the config file or BRAVE_SEARCH_API_KEY"
 }
 
 // maxBody caps how much of a response is read. A context response at the
@@ -130,10 +135,10 @@ func intList(s string) []int {
 // refuses to build one without a key: nothing is sent that Brave would only
 // reject.
 func (c *Client) newRequest(ctx context.Context, method, endpoint string, query url.Values, body io.Reader) (*http.Request, error) {
-	key := c.keyFor(endpoint)
+	key, setting := c.keyFor(endpoint)
 	if key == "" {
 		return nil, &Error{Code: CodeMissingAPIKey,
-			Message: "no Brave API key is configured; set [api] api_key in the config file or BRAVE_SEARCH_API_KEY",
+			Message: "no Brave API key is configured for " + endpoint + "; set " + setting,
 			Details: map[string]any{"endpoint": endpoint}}
 	}
 	u := c.BaseURL + endpoint

@@ -31,8 +31,9 @@ func answersEngine(t *testing.T, stream string, sent *map[string]any, timeoutSee
 		_, _ = w.Write([]byte(stream))
 	}))
 	t.Cleanup(srv.Close)
-	e := New(config.Defaults(), brave.New(srv.URL, "k", "", 5*time.Second, "t"))
-	return e
+	c := brave.New(srv.URL, "k", "", 5*time.Second, "t")
+	c.AnswersAPIKey = "ak"
+	return New(config.Defaults(), c)
 }
 
 func TestAnswerDefaultsAndShape(t *testing.T) {
@@ -89,7 +90,9 @@ func TestResearchDeadlineFollowsTheBudget(t *testing.T) {
 		_, _ = w.Write([]byte(researchStream))
 	}))
 	t.Cleanup(srv.Close)
-	e := New(config.Defaults(), brave.New(srv.URL, "k", "", 50*time.Millisecond, "t"))
+	c := brave.New(srv.URL, "k", "", 50*time.Millisecond, "t")
+	c.AnswersAPIKey = "ak"
+	e := New(config.Defaults(), c)
 	if _, err := e.Research(context.Background(), ResearchRequest{Question: "q", MaxSeconds: 1}, nil); err != nil {
 		t.Errorf("research was cut off by the shared timeout: %v", err)
 	}

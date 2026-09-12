@@ -77,7 +77,7 @@ Call `get_usage` first — it is the full reference for the tools, their result 
 ## Setup
 
 1. Subscribe at <https://api-dashboard.search.brave.com/> — the **Search** plan covers `web` and `context`, the **Answers** plan covers `answer` and `research` — and create an API key.
-2. Put the key in `~/.config/brave-search/config.toml` (see [config.example.toml](config.example.toml)) or in `BRAVE_SEARCH_API_KEY`. If Brave issued a separate key for the Answers plan, set `answers_api_key` (or `BRAVE_SEARCH_ANSWERS_API_KEY`) as well. The key is never accepted as a flag.
+2. Brave issues **one key per plan**. Put the Search key in `~/.config/brave-search/config.toml` as `api_key` (or `BRAVE_SEARCH_API_KEY`) and the Answers key as `answers_api_key` (or `BRAVE_SEARCH_ANSWERS_API_KEY`) — see [config.example.toml](config.example.toml). Keys are never accepted as flags.
 3. `brave-search auth check` tells you which plans the key unlocks.
 
 ## What the Terms of Service mean for this tool
