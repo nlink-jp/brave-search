@@ -132,6 +132,9 @@ func TestAnswerResearchMode(t *testing.T) {
 	if res.Usage == nil || res.Usage.Queries != 4 {
 		t.Errorf("usage = %+v", res.Usage)
 	}
+	if res.TagsSeen["citation"] != 2 || res.TagsSeen["progress"] != 2 || res.TagsSeen["answer"] != 1 || res.TagsSeen["thinking"] != 1 {
+		t.Errorf("tags seen = %v", res.TagsSeen)
+	}
 	for _, leaked := range []string{"<thinking>", "<queries>", "<analyzing>", "choosing urls", "q one"} {
 		if strings.Contains(res.Text, leaked) {
 			t.Errorf("debug content leaked into the answer: %q", leaked)
@@ -141,6 +144,46 @@ func TestAnswerResearchMode(t *testing.T) {
 
 // Brave issues one key per plan, so the Search key is never sent to
 // Answers: without an Answers key nothing is sent at all.
+// The shape measured live on 2026-09-12: debug tags, one JSON progress
+// report, and an <answer> whose body is a JSON object. Content invented.
+const researchStreamMeasuredShape = `data: {"choices":[{"delta":{"content":"<queries>[\"q one\"]</queries><thinking>picking sources</thinking><analyzing>{\"urls\":30}</analyzing>"},"index":0}]}
+data: {"choices":[{"delta":{"content":"<progress>{\"elasped_seconds\":9.6,\"number_of_input_tokens\":11347,\"number_of_iterations\":1,\"number_of_output_tokens\":564,\"number_of_queries\":1,\"number_of_snippets_analyzed\":71,\"number_of_thinking_tokens\":0,\"number_of_urls_analyzed\":30}</progress>"},"index":0}]}
+data: {"choices":[{"delta":{"content":"<answer>{\"answer\": \"Research mode iterates over several searches.\", \"citations\": [{\"number\": 1, \"url\": \"https://example.com/r\"}], \"blindspots\": [\"pricing after 2026\"], \"confidence\": 0.9}</answer>"},"index":0}]}
+data: {"choices":[{"delta":{"content":"<usage>{\"X-Request-Requests\":1,\"X-Request-Queries\":1,\"X-Request-Tokens-In\":11347,\"X-Request-Tokens-Out\":564,\"X-Request-Total-Cost\":0.0636}</usage>"},"index":0}]}
+data: [DONE]
+`
+
+func TestResearchAnswerObjectIsUnwrapped(t *testing.T) {
+	c, _, _ := serveStream(t, researchStreamMeasuredShape)
+	res, _, err := c.Answer(context.Background(), AnswerParams{Question: "q", Research: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Text != "Research mode iterates over several searches." {
+		t.Errorf("text = %q (the JSON wrapper leaked)", res.Text)
+	}
+	if len(res.Citations) != 1 || res.Citations[0].URL != "https://example.com/r" {
+		t.Errorf("citations = %+v", res.Citations)
+	}
+	if res.Blindspots != "pricing after 2026" {
+		t.Errorf("blindspots = %q", res.Blindspots)
+	}
+	if string(res.AnswerExtra["confidence"]) != "0.9" {
+		t.Errorf("extra keys not carried: %v", res.AnswerExtra)
+	}
+	if res.Progress[0].Fields["number_of_urls_analyzed"] != float64(30) || res.Usage.TotalCost != 0.0636 {
+		t.Errorf("progress=%+v usage=%+v", res.Progress, res.Usage)
+	}
+	if res.TagsSeen["queries"] != 1 || res.TagsSeen["answer"] != 1 {
+		t.Errorf("tags = %v", res.TagsSeen)
+	}
+	for _, leaked := range []string{"picking sources", "q one", `"urls"`} {
+		if strings.Contains(res.Text, leaked) {
+			t.Errorf("debug content leaked: %q", leaked)
+		}
+	}
+}
+
 func TestAnswersNeedsItsOwnKey(t *testing.T) {
 	c, cap, _ := serveStream(t, singleStream)
 	c.AnswersAPIKey = ""

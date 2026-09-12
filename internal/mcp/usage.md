@@ -152,10 +152,15 @@ proved insufficient.
 | `max_seconds` | integer | Time budget, 1-300 (default 120). The HTTP deadline is this plus 30 s. |
 
 Result: as `answer`, with `mode: "research"`, plus `blindspots` (what Brave
-says it could not cover — read it before trusting the answer) and
-`progress[]` (Brave's iteration reports, for provenance: each is
-`{fields}` with Brave's own keys when the report was JSON, else `{raw}`).
-The research stream's exact tag shape has not yet been confirmed live.
+says it could not cover — read it before trusting the answer; empty in every
+live run so far), `progress[]` (one report per iteration: `{fields}` with
+Brave's own keys — `number_of_queries`, `number_of_urls_analyzed`,
+`number_of_snippets_analyzed`, `number_of_input_tokens`,
+`number_of_output_tokens`, `elasped_seconds` (Brave's spelling) — or `{raw}`
+when a report was not JSON), and `answer_extra` for any key of Brave's answer
+object this server does not yet understand. Measured 2026-09-12: a research
+call capped at 2 queries / 1 iteration ran 1 query, took ~10 s and cost
+$0.063–0.064; neither run returned citations.
 
 ### `get_usage`
 

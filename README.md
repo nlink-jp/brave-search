@@ -13,7 +13,7 @@ brave-search exposes three [Brave Search API](https://brave.com/search/api/) end
 
 It is a search primitive: it returns what Brave returns, prints what the call cost, and never stores, recomposes or redistributes a result. [gem-search](https://github.com/nlink-jp/gem-search) is the agentic report generator on Vertex AI; this is the search call that needs only a Brave API key.
 
-> **Status: under development.** Every command is implemented and measured against the live API for web, context and answer; research's stream shape is not yet confirmed live.
+> **Status: under development.** Every command is implemented and measured against the live API.
 
 ## Install
 

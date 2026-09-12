@@ -461,8 +461,13 @@ canonical record from here on.
     usage / progress) are honoured only when their body is a JSON object;
     text-carrying tags (answer / blindspots / debug) are stripped as Brave's
     since they cannot be told apart. Recorded as a known limit in AGENTS.md.
-11. **The research stream shape is unconfirmed** (one live run ≈ $0.1,
-    awaiting the operator's go-ahead).
+11. **The research `<answer>` body is a JSON object** (`{"answer": "…"}`),
+    not prose. The parser unwraps `answer`, reads `citations` / `blindspots`
+    keys when present, and keeps any other key verbatim in `answer_extra`.
+    Both live runs returned neither citations nor blind spots. `<progress>`
+    arrives once per iteration (`number_of_*` keys and `elasped_seconds`).
+    Capped at 2 queries / 1 iteration / 60 s, Brave ran 1 query in ~10 s for
+    $0.063.
 
 ---
 

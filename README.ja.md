@@ -13,7 +13,7 @@ brave-search は [Brave Search API](https://brave.com/search/api/) の 3 エン�
 
 これは検索プリミティブです。Brave が返したものをそのまま返し、そのコールのコストを表示し、結果を保存・再構成・再配布しません。[gem-search](https://github.com/nlink-jp/gem-search) が Vertex AI 上のエージェンティックなレポート生成器であるのに対し、こちらは Brave の API キーだけで動く検索呼び出しです。
 
-> **Status: 開発中。** 全コマンドを実装し、web・context・answer は実 API で実測済み。research のストリーム形式は未確認です。
+> **Status: 開発中。** 全コマンドを実装し、実 API で実測済み。
 
 ## インストール
 

@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
 	"strings"
 )
 
@@ -45,6 +46,14 @@ type AnswerResult struct {
 	FinishReason string
 	// Chunks counts the SSE data frames, as provenance.
 	Chunks int
+	// TagsSeen counts every <name>…</name> pair in the stream by name,
+	// JSON-carrying or not — provenance for a protocol whose shape is only
+	// partly documented.
+	TagsSeen map[string]int
+	// AnswerExtra holds the keys of a research <answer> object other than
+	// answer / citations / blindspots, verbatim, so nothing Brave adds is
+	// silently dropped before its shape is known.
+	AnswerExtra map[string]json.RawMessage
 }
 
 // Citation is one <citation> tag. Indexes refer to the answer text.
@@ -253,6 +262,7 @@ var (
 // (answer, blindspots, and the debug tags) cannot be told apart, and are
 // stripped as Brave's; that limit is recorded in AGENTS.md.
 func assemble(res *AnswerResult, content string) {
+	res.TagsSeen = countTags(content)
 	// Usage: the last one wins, as an unbounded stream could carry several.
 	for _, inner := range completeJSONTags(content, "usage") {
 		var u Usage
@@ -273,6 +283,12 @@ func assemble(res *AnswerResult, content string) {
 	text := content
 	if answers := completeTags(content, "answer"); len(answers) > 0 {
 		text = answers[0]
+		// Measured 2026-09-12: in research mode the <answer> body is a JSON
+		// object, {"answer": "…"}, not prose. Unwrap it; carry any other
+		// keys along, and read citations / blindspots from it if present.
+		if isJSONObject(text) {
+			text = unwrapAnswerObject(res, text)
+		}
 	}
 	for _, inner := range completeJSONTags(text, "citation") {
 		var c Citation
@@ -287,6 +303,72 @@ func assemble(res *AnswerResult, content string) {
 		text = stripTags(text, name)
 	}
 	res.Text = strings.TrimRight(text, " \t\r\n")
+}
+
+// unwrapAnswerObject reads a research-mode <answer> JSON object into the
+// result and returns its answer text. Only "answer" has been observed
+// (2026-09-12); "citations" and "blindspots" are read on the documented
+// promise that research returns them, and everything else is kept raw.
+func unwrapAnswerObject(res *AnswerResult, body string) string {
+	var m map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(body), &m); err != nil {
+		return body
+	}
+	text := body
+	if raw, ok := m["answer"]; ok {
+		var s string
+		if json.Unmarshal(raw, &s) == nil {
+			text = s
+		}
+		delete(m, "answer")
+	}
+	if raw, ok := m["citations"]; ok {
+		var cs []Citation
+		if json.Unmarshal(raw, &cs) == nil {
+			for _, c := range cs {
+				if c.URL != "" {
+					res.Citations = append(res.Citations, c)
+				}
+			}
+			delete(m, "citations")
+		}
+	}
+	if raw, ok := m["blindspots"]; ok {
+		var s string
+		var list []string
+		switch {
+		case json.Unmarshal(raw, &s) == nil:
+			res.Blindspots = strings.TrimSpace(s)
+			delete(m, "blindspots")
+		case json.Unmarshal(raw, &list) == nil:
+			res.Blindspots = strings.TrimSpace(strings.Join(list, "\n"))
+			delete(m, "blindspots")
+		}
+	}
+	if len(m) > 0 {
+		res.AnswerExtra = m
+	}
+	return text
+}
+
+var tagNameRe = regexp.MustCompile(`<([a-zA-Z_][a-zA-Z0-9_-]*)>`)
+
+// countTags counts complete <name>…</name> pairs by name.
+func countTags(s string) map[string]int {
+	out := map[string]int{}
+	for _, m := range tagNameRe.FindAllStringSubmatch(s, -1) {
+		name := m[1]
+		if _, done := out[name]; done {
+			continue
+		}
+		if n := len(completeTags(s, name)); n > 0 {
+			out[name] = n
+		}
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }
 
 // isJSONObject reports whether s is a JSON object, which is what every

@@ -412,7 +412,11 @@ AGENTS.md Gotchas に日付付きで置き換える**。
 10. **タグにエスケープが無い**。JSON を運ぶタグ（citation / usage / progress）は本文が
     JSON オブジェクトのときだけタグとして扱い、文字列タグ（answer / blindspots / debug）
     は区別不能のまま剥がす。既知の限界として AGENTS.md に記録。
-11. **research のストリーム形式は未確認**（実測は利用者の指示待ち。1 回 ≈ $0.1）。
+11. **research の `<answer>` 本文は JSON オブジェクト**（`{"answer": "…"}`）で、文字列
+    ではない。パーサで `answer` を取り出し、`citations` / `blindspots` キーがあれば読み、
+    それ以外のキーは `answer_extra` に生のまま残す。実測 2 回とも引用・盲点は空。
+    `<progress>` は反復ごとに 1 件（キーは `number_of_*` と `elasped_seconds`）。
+    2 クエリ・1 反復・60 秒の上限で Brave は 1 クエリしか走らせず、約 10 秒・$0.063。
 
 ---
 

@@ -39,9 +39,8 @@ Search Results beyond transient operational use, and defines them to include
 Answers text and third-party content. A fixture is written by hand; its
 titles, URLs, snippets and answer text are invented. The *format* (JSON shape,
 SSE line structure, tag names) was confirmed against the live API on
-2026-09-12 for web search, LLM context and single-search answers; the
-research stream's tags are still transcribed from the documentation and
-await a live run. Never paste a live response into the repository.
+2026-09-12 for web search, LLM context, single-search answers and research.
+Never paste a live response into the repository.
 
 `internal/mcp/usage_test.go` holds meta-tests that pin `usage.md` to the code
 — every tool name, every argument and every error code must appear in the
@@ -126,6 +125,19 @@ this a year from now.
   with a real closer), and strips text-carrying tags (`answer`, `blindspots`,
   `thinking`, `queries`, `analyzing`) as Brave's — a question about "how
   `<thinking>` tags work" loses that span. Known limit.
+- **Research mode's `<answer>` body is a JSON object, not prose** —
+  `{"answer": "…"}` in both live runs (2026-09-12). The parser unwraps it,
+  reads `citations` / `blindspots` keys if present (documented, not yet
+  observed — both runs had neither, and no `<blindspots>` tag either), and
+  keeps any other key verbatim in `answer_extra`. `tags_seen` in a `--json`
+  result records what the stream actually carried.
+- **Research progress keys (Brave's spelling included):** `elasped_seconds`,
+  `number_of_input_tokens`, `number_of_output_tokens`, `number_of_thinking_tokens`,
+  `number_of_iterations`, `number_of_queries`, `number_of_urls_analyzed`,
+  `number_of_snippets_analyzed`. One report per iteration.
+- **Research cost at 2 queries / 1 iteration / 60 s: $0.063–0.064, ~10–12 s,
+  and Brave ran only 1 query of the 2 allowed** (~11,000 input tokens, ~30
+  URLs analysed). The caps are ceilings, not targets.
 - **Every stream ends with `data: [DONE]`.** A stream that ends without it is
   reported as `upstream_error` ("incomplete"), never as a complete answer.
 - **A single-search citation observed live had `start_index == end_index`**
@@ -160,9 +172,11 @@ Open questions still to be answered, recorded here with a date when they are:
 3. Do Answers / LLM Context fetch target pages live, or serve from Brave's
    index? (Decides the mcp-tactics tier.) Not yet checked against Brave's
    documentation of the retrieval path.
-4. What does a research call actually cost at the defaults, and does its
-   stream carry the documented `<progress>` / `<blindspots>` / `<answer>`
-   tags? Run `BRAVE_SEARCH_E2E_RESEARCH=1 make e2e` once.
+4. ~~What does a research call cost, and what tags does its stream carry?~~
+   **2026-09-12: see the research bullets above.** Still unobserved: a
+   research answer *with* citations or blind spots, so the `citations` /
+   `blindspots` keys of the answer object are read on the documentation's
+   word only.
 
 ## Conventions (organization-wide)
 

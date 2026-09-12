@@ -41,8 +41,7 @@ e2e/                    Live tests behind the `e2e` build tag
   "Search Results" includes Answers text. There is no `cache` subcommand and
   no `[cache]` section; every test fixture is synthetic — content invented,
   format confirmed against the live API on 2026-09-12 for web, context and
-  single-search answers (research's stream shape is still a transcription of
-  the documentation). Do not add either.
+  both Answers modes. Do not add either.
 - **The parameter matrix in the RFP is the single mapping** of CLI flag ↔ MCP
   argument ↔ config key ↔ upstream parameter. Add a parameter there first;
   the three surfaces derive from it.

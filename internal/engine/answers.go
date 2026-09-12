@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
 	"time"
 
@@ -44,7 +45,13 @@ type AnswerResult struct {
 	// Note is present only when something about the result needs saying —
 	// today, that Brave returned no citations for a non-English reply.
 	Note string `json:"note,omitempty"`
-	Meta Meta   `json:"meta"`
+	// TagsSeen counts the stream's tags by name — provenance while the
+	// research stream's shape is still being confirmed.
+	TagsSeen map[string]int `json:"tags_seen,omitempty"`
+	// AnswerExtra carries any key of a research answer object this tool does
+	// not yet understand, verbatim.
+	AnswerExtra map[string]json.RawMessage `json:"answer_extra,omitempty"`
+	Meta        Meta                       `json:"meta"`
 }
 
 // NoCitationsNonEnglish is the note attached when a reply in a language other
@@ -139,13 +146,15 @@ func validateAnswerCommon(p brave.AnswerParams) error {
 
 func shapeAnswer(question, mode, language string, res *brave.AnswerResult, meta *brave.Meta) *AnswerResult {
 	out := &AnswerResult{
-		Question:   question,
-		Mode:       mode,
-		Answer:     res.Text,
-		Citations:  res.Citations,
-		Blindspots: res.Blindspots,
-		Progress:   res.Progress,
-		Meta:       Meta{Requests: 1, CostBasis: CostUnreported},
+		Question:    question,
+		Mode:        mode,
+		Answer:      res.Text,
+		Citations:   res.Citations,
+		Blindspots:  res.Blindspots,
+		Progress:    res.Progress,
+		TagsSeen:    res.TagsSeen,
+		AnswerExtra: res.AnswerExtra,
+		Meta:        Meta{Requests: 1, CostBasis: CostUnreported},
 	}
 	if out.Citations == nil {
 		out.Citations = []brave.Citation{}
