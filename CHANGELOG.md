@@ -11,8 +11,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Live measurements (2026-09-12) folded in: Brave's error code is read before
   the HTTP status (a bad key is a 422 `SUBSCRIPTION_TOKEN_INVALID`); a
   0-limit rate window is uncapped, not exhausted; a stream without `[DONE]`
-  is an incomplete answer; citations are emitted only for `language=en`, so
-  a non-English answer without citations carries a `note`.
+  is an incomplete answer; citations proved unreliable for non-English
+  replies, so a non-English answer without citations carries a `note`.
 - `--` ends flag parsing so a query word starting with `-` (the exclusion
   operator) can be passed; `-h` on a subcommand prints usage and exits 0;
   `research --timeout` overrides the derived deadline; the 400-character /

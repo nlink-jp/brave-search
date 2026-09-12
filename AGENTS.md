@@ -97,10 +97,12 @@ this a year from now.
   billed as 1 search + ~9,800–10,500 input tokens + ~200–300 output tokens =
   **$0.054–0.058**; Brave feeds the retrieved pages to its model and bills
   them as input. A web search is $0.005. Say so wherever an agent chooses.
-- **Citations come back only for `language: en`.** Same question, same
-  country: `en` → 29 `<citation>` tags, `ja` → 0. The engine attaches a
-  `note` to a non-English answer that has no citations. Not yet checked for
-  other languages.
+- **Citations are unreliable for non-English replies — and not
+  deterministic.** One question, country constant, five runs: `en` → 29, 29;
+  `ja` → 0, 0, 24. So "no citations" is a per-run outcome that clusters on
+  non-English replies, not a rule. The engine attaches a `note` to a
+  non-English answer that has no citations. An empty `citations` never means
+  "no sources exist". Other languages unchecked.
 - **The Answers endpoint returns no `X-RateLimit-*` headers**; the Search
   endpoints do. Answers results therefore carry no `rate_limit`.
 - **A key of the other plan is accepted.** A billed `/web/search` with the

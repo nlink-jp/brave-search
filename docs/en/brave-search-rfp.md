@@ -440,9 +440,10 @@ canonical record from here on.
    pricing note ("$4 per 1,000 searches + tokens") missed that the retrieved
    pages are billed as input tokens. Ten times a web search. Stated in
    usage.md and README.
-5. **Citations are emitted only for `language=en`** (same question: 29 in
-   English, 0 in Japanese, country constant). A non-English answer without
-   citations carries a `note`.
+5. **Citations are unreliable for non-English replies, and not
+   deterministic** (one question, country constant, five runs: en → 29, 29;
+   ja → 0, 0, 24). A non-English answer without citations carries a `note`,
+   and an empty `citations` is never read as "no sources".
 6. **The Answers endpoint returns no `X-RateLimit-*` headers** (the Search
    endpoints do). §2's "every command reports the budget left" holds for the
    Search commands only.
