@@ -378,6 +378,41 @@ AGENTS.md Gotchas に日付付きで置き換える**。
 インデックスと抽出済みチャンクを返す設計と読めるが、mcp-tactics の tier 判定
 （第三者照会か対象接触か）に関わるので Phase 1 で公式説明を確認し記録する。
 
+## 実装後の訂正（2026-09-12）
+
+実 API の実測で RFP の記述と食い違った点。以後は AGENTS.md の Gotchas が正典。
+
+1. **キーはプランごとに別**（利用者がダッシュボードで確認）。`[api] answers_api_key` /
+   `BRAVE_SEARCH_ANSWERS_API_KEY` を追加し、answer / research に**必須**とした。§5 の
+   「`api_key` へのフォールバック」は撤回 — 未設定なら送信前に `missing_api_key`。
+   ただし API はどちらのキーもどのエンドポイントでも受理する（Answers キーで
+   `/web/search` が 200、レート方針は Answers プランのもの）。キーはエンドポイント
+   固定ではなく「どのプランに課金・制限するか」の選択であり、ツールは分離を保つ。
+2. **`Api-Version` の既定は空（最新）**。任意の日付（2026-09-12）は 404 "product api
+   version is not found" で拒否された。「実装日を固定して送る」は撤回。
+3. **不正キーは 401 ではなく 422**（`error.code = SUBSCRIPTION_TOKEN_INVALID`）。
+   リクエスト不正の 422（`VALIDATION`）と同ステータスなので、エラー写像は上流コード
+   優先・ステータスは後置き。`auth check` はこの区別を無課金 probe で利用する。
+4. **answer 1 回 ≈ $0.054〜0.058**（1 検索 + 入力約 10,000 トークン）。§7 の料金欄は
+   「検索 $4/1,000 + トークン」としか書いておらず、検索結果が入力トークンとして
+   課金される規模を見落としていた。web 検索の約 10 倍。usage.md / README に明記。
+5. **citations は `language=en` のときだけ返る**（同一質問で en 29 件・ja 0 件、
+   country は不変）。非英語で引用の無い回答には `note` を付ける。
+6. **Answers エンドポイントは `X-RateLimit-*` を返さない**（Search 系は返す）。
+   §2「全コマンド共通で残枠を載せる」は Search 系に限る。
+7. **従量課金キーの月間窓は limit 0**（`50;w=1, 0;w=2592000`）。0 は「上限なし」で
+   あり「枯渇」ではない。`ResetSeconds` はその窓を無視する。
+8. **結果スキーマの実体**: `llm_context` は `chunks[]`（sources を各チャンクに畳み込み）、
+   `answer` の usage は `meta` に畳み込み（`searches` / `tokens_in` / `tokens_out` /
+   `cost_usd`）。§2 の MCP ツール表の「`grounding.generic[]` + `sources`」「`usage`」は
+   実装前の記述。
+9. **クエリ長の制限（400 字・50 語）は web / context のみ**。answer / research の
+   question には適用しない（§2 行列の対象列どおり。実装が一時的に広げていたのを訂正）。
+10. **タグにエスケープが無い**。JSON を運ぶタグ（citation / usage / progress）は本文が
+    JSON オブジェクトのときだけタグとして扱い、文字列タグ（answer / blindspots / debug）
+    は区別不能のまま剥がす。既知の限界として AGENTS.md に記録。
+11. **research のストリーム形式は未確認**（実測は利用者の指示待ち。1 回 ≈ $0.1）。
+
 ---
 
 ## Discussion Log

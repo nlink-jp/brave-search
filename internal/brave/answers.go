@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -181,6 +182,7 @@ func readStream(r io.Reader, progress func(Progress)) (*AnswerResult, error) {
 	var content strings.Builder
 	res := &AnswerResult{}
 	emitted := 0
+	done := false
 	for sc.Scan() {
 		line := sc.Text()
 		if !strings.HasPrefix(line, "data:") {
@@ -191,6 +193,7 @@ func readStream(r io.Reader, progress func(Progress)) (*AnswerResult, error) {
 			continue
 		}
 		if data == "[DONE]" {
+			done = true
 			break
 		}
 		var ch chatChunk
@@ -209,17 +212,27 @@ func readStream(r io.Reader, progress func(Progress)) (*AnswerResult, error) {
 			}
 		}
 		if progress != nil {
-			for _, inner := range completeTags(content.String(), "progress")[emitted:] {
-				progress(parseProgress(inner))
+			for _, inner := range completeJSONTags(content.String(), "progress")[emitted:] {
 				emitted++
+				progress(parseProgress(inner))
 			}
 		}
 	}
 	if err := sc.Err(); err != nil {
+		if errors.Is(err, bufio.ErrTooLong) {
+			return nil, decodeError(answersEndpoint, fmt.Errorf("a stream line exceeded 4 MB"))
+		}
 		return nil, transportError(answersEndpoint, err)
 	}
 	if res.Chunks == 0 {
 		return nil, decodeError(answersEndpoint, fmt.Errorf("the stream carried no data frames"))
+	}
+	if !done {
+		// Brave ends every stream with [DONE] (measured 2026-09-12). Without
+		// it the body was cut — by the 16 MB cap, a dropped connection, or
+		// upstream — and a partial answer must not pass as a complete one.
+		return nil, &Error{Code: CodeUpstream, Message: "the answer stream ended before [DONE]; the answer is incomplete",
+			Details: map[string]any{"endpoint": answersEndpoint, "chunks": res.Chunks}}
 	}
 	assemble(res, content.String())
 	return res, nil
@@ -231,37 +244,115 @@ var (
 )
 
 // assemble parses the concatenated content into the result.
+//
+// Brave's protocol has no escaping: a tag name that appears literally in an
+// answer ("how do HTML <progress> elements work") is indistinguishable from
+// a control tag by its brackets alone. The JSON-carrying tags (citation,
+// usage, progress) are therefore honoured only when their body parses as a
+// JSON object — literal text falls through untouched. The text-carrying tags
+// (answer, blindspots, and the debug tags) cannot be told apart, and are
+// stripped as Brave's; that limit is recorded in AGENTS.md.
 func assemble(res *AnswerResult, content string) {
 	// Usage: the last one wins, as an unbounded stream could carry several.
-	for _, inner := range completeTags(content, "usage") {
+	for _, inner := range completeJSONTags(content, "usage") {
 		var u Usage
 		if json.Unmarshal([]byte(inner), &u) == nil {
 			res.Usage = &u
 		}
 	}
-	for _, inner := range completeTags(content, "progress") {
+	for _, inner := range completeJSONTags(content, "progress") {
 		res.Progress = append(res.Progress, parseProgress(inner))
 	}
 	if bs := completeTags(content, "blindspots"); len(bs) > 0 {
 		res.Blindspots = strings.TrimSpace(strings.Join(bs, "\n"))
 	}
 
-	// The answer body: the <answer> tag in research mode, else everything
-	// that is not a tag.
+	// The answer body: the first <answer> tag in research mode, else
+	// everything that is not a tag. Only trailing whitespace is trimmed, so
+	// Brave's citation indexes keep their meaning relative to the text.
 	text := content
 	if answers := completeTags(content, "answer"); len(answers) > 0 {
-		text = strings.Join(answers, "\n")
+		text = answers[0]
 	}
-	for _, inner := range completeTags(text, "citation") {
+	for _, inner := range completeJSONTags(text, "citation") {
 		var c Citation
-		if json.Unmarshal([]byte(inner), &c) == nil {
+		if json.Unmarshal([]byte(inner), &c) == nil && c.URL != "" {
 			res.Citations = append(res.Citations, c)
 		}
 	}
-	for _, name := range append([]string{"citation", "usage", "progress", "blindspots", "answer"}, debugTags...) {
+	text = stripJSONTags(text, "citation")
+	text = stripJSONTags(text, "usage")
+	text = stripJSONTags(text, "progress")
+	for _, name := range append([]string{"blindspots", "answer"}, debugTags...) {
 		text = stripTags(text, name)
 	}
-	res.Text = strings.TrimSpace(text)
+	res.Text = strings.TrimRight(text, " \t\r\n")
+}
+
+// isJSONObject reports whether s is a JSON object, which is what every
+// machine tag Brave emits carries. Prose that merely sits between literal
+// brackets is not.
+func isJSONObject(s string) bool {
+	s = strings.TrimSpace(s)
+	if !strings.HasPrefix(s, "{") {
+		return false
+	}
+	var m map[string]json.RawMessage
+	return json.Unmarshal([]byte(s), &m) == nil
+}
+
+// jsonTags returns every <name>…</name> pair whose body is a JSON object, as
+// (start, end) offsets of the whole tag plus the body. A literal "<name>" in
+// prose is skipped by one tag, not by one pair: otherwise "a <progress>
+// element … <progress>{json}</progress>" would pair the literal opener with
+// the real closer and lose the real tag.
+func jsonTags(s, name string) (spans [][2]int, bodies []string) {
+	open, close := "<"+name+">", "</"+name+">"
+	pos := 0
+	for {
+		i := strings.Index(s[pos:], open)
+		if i < 0 {
+			return spans, bodies
+		}
+		i += pos
+		bodyStart := i + len(open)
+		j := strings.Index(s[bodyStart:], close)
+		if j < 0 {
+			return spans, bodies
+		}
+		body := s[bodyStart : bodyStart+j]
+		if !isJSONObject(body) {
+			pos = bodyStart // a literal opener: look for the next one inside
+			continue
+		}
+		end := bodyStart + j + len(close)
+		spans = append(spans, [2]int{i, end})
+		bodies = append(bodies, body)
+		pos = end
+	}
+}
+
+// completeJSONTags returns the bodies of every JSON-carrying tag.
+func completeJSONTags(s, name string) []string {
+	_, bodies := jsonTags(s, name)
+	return bodies
+}
+
+// stripJSONTags removes every JSON-carrying <name>…</name> pair and leaves
+// any literal occurrence in place.
+func stripJSONTags(s, name string) string {
+	spans, _ := jsonTags(s, name)
+	if len(spans) == 0 {
+		return s
+	}
+	var b strings.Builder
+	last := 0
+	for _, sp := range spans {
+		b.WriteString(s[last:sp[0]])
+		last = sp[1]
+	}
+	b.WriteString(s[last:])
+	return b.String()
 }
 
 func parseProgress(inner string) Progress {
@@ -271,6 +362,9 @@ func parseProgress(inner string) Progress {
 	}
 	return Progress{Raw: strings.TrimSpace(inner)}
 }
+
+// AnswersEndpoint is exported for callers that key on the endpoint.
+const AnswersEndpoint = answersEndpoint
 
 // completeTags returns the inner text of every complete <name>…</name> pair,
 // in order. An unterminated tag is left alone (it may still be arriving).

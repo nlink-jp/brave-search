@@ -7,7 +7,7 @@
 #
 # Network and a configured key required. Run via `make e2e`, which builds first.
 #
-# Budget: three billed requests (web, context, one MCP web_search). Everything
+# Budget: four billed requests (web ×2, context, one MCP web_search). Everything
 # else here is refused locally or by an unbilled 4xx.
 
 set -uo pipefail
@@ -68,7 +68,7 @@ fi
 if [ "$HAVE_KEY" = 1 ]; then
   echo "== billed checks (3 requests)"
   contains "web prints a ranked result"       "1. "            -- "$BIN" web "Brave Search API" --count 2
-  contains "web prints the cost line"         "cost: \$"       -- "$BIN" web "Brave Search API" --count 2 --json
+  contains "web --json carries cost_usd"      "cost_usd"       -- "$BIN" web "Brave Search API" --count 2 --json
   contains "context returns chunks"           '"snippets":'    -- "$BIN" context "Brave Search API" --count 2 --max-tokens 1024 --json
 
   echo "== MCP stdio session (1 request)"

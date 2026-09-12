@@ -13,7 +13,7 @@ brave-search は [Brave Search API](https://brave.com/search/api/) の 3 エン�
 
 これは検索プリミティブです。Brave が返したものをそのまま返し、そのコールのコストを表示し、結果を保存・再構成・再配布しません。[gem-search](https://github.com/nlink-jp/gem-search) が Vertex AI 上のエージェンティックなレポート生成器であるのに対し、こちらは Brave の API キーだけで動く検索呼び出しです。
 
-> **Status: 開発中。** 全コマンドを実装しオフラインでテスト済み。実 API に対する検証はまだ行っていません。
+> **Status: 開発中。** 全コマンドを実装し、web・context・answer は実 API で実測済み。research のストリーム形式は未確認です。
 
 ## インストール
 
@@ -26,6 +26,7 @@ make build  # → dist/brave-search
 ```bash
 # 順位付き結果 — クエリは引用符なしでもよく、フラグは後ろに置ける
 brave-search web go generics --count 5
+brave-search web -- go -tutorial                    # 先頭が "-" の語（除外演算子）は "--" の後ろに
 brave-search web "site:go.dev generics" --freshness pm --extra-snippets
 brave-search web --json go generics --full          # 上流の全フィールドを JSON で
 
@@ -58,6 +59,8 @@ Search 系エンドポイントは Brave の公表単価でリクエストごと
 cost: $0.0157 (reported by Brave) · requests: 1 · searches: 2 · tokens: 1234 in / 300 out
 ```
 
+**answer 1 回のコストは web 検索の約 10 倍です。** Brave は検索結果をモデルに入力トークンとして食わせて課金するため、`answer` 1 回の実測は入力約 10,000 トークン・$0.054〜0.058 でした。**非英語の回答では引用（citations）が不安定です**（同じ質問で実測: 英語は毎回返り、日本語は 3 回中 1 回）。引用の無い非英語の回答には `note` でその旨が付くので、出典が要るときは再試行するか英語で聞いてください。
+
 `research` の既定は API 自身の既定より意図的に絞ってあります（反復あたり 10 検索・2 反復・120 秒。API 既定は 20 / 4 / 180）。1 回の呼び出しで走った検索すべてとトークンが課金され、いったん投げた呼び出しは止められないためです。
 
 ### 設定
@@ -78,7 +81,7 @@ claude mcp add brave-search -- /path/to/brave-search mcp
 
 1. <https://api-dashboard.search.brave.com/> で契約し — **Search** プランが `web` と `context`、**Answers** プランが `answer` と `research` を担います — API キーを作成します。
 2. Brave は**プランごとに別のキー**を発行します。Search のキーを `~/.config/brave-search/config.toml` の `api_key`（または `BRAVE_SEARCH_API_KEY`）に、Answers のキーを `answers_api_key`（または `BRAVE_SEARCH_ANSWERS_API_KEY`）に置きます — [config.example.toml](config.example.toml) 参照。キーはフラグでは受け付けません。
-3. `brave-search auth check` で各キーの状態 — 有効・拒否・プラン未契約・未設定 — と、どの設定ファイルが読まれたかが分かります。プランごとに意図的に不正なリクエストを送り、Brave が課金せずに拒否する応答で判定するので、この確認は無料です。
+3. `brave-search auth check` で各キーの状態 — 有効・拒否・プラン未契約・未設定 — と、どの設定ファイルが読まれたかが分かります。プランごとに意図的に不正なリクエストを送って判定します。Brave は失敗応答を課金しないと文書化しているので、この確認は無料のはずです。
 
 ## 利用規約がこのツールに課すこと
 

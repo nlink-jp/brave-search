@@ -89,18 +89,31 @@ type RateLimit struct {
 }
 
 // ResetSeconds returns how long to wait before the exhausted window resets:
-// the reset of the first window whose remaining count is zero, else the first
-// reset value. ok is false when no reset header was present.
+// the reset of the first *capped* window whose remaining count is zero, else
+// the first reset value. ok is false when no reset header was present.
+//
+// A window with limit 0 is not a cap: measured 2026-09-12, a pay-as-you-go
+// Search key reports "50;w=1, 0;w=2592000" — a 50/s burst limit and *no*
+// monthly quota — with remaining "49, 0". Reading that monthly 0 as
+// "exhausted" would tell a caller to wait 18 days on every 429.
 func (r *RateLimit) ResetSeconds() (int, bool) {
 	if r == nil || len(r.Reset) == 0 {
 		return 0, false
 	}
 	for i, rem := range r.Remaining {
+		if !r.Capped(i) {
+			continue
+		}
 		if rem <= 0 && i < len(r.Reset) {
 			return r.Reset[i], true
 		}
 	}
 	return r.Reset[0], true
+}
+
+// Capped reports whether window i has a limit at all.
+func (r *RateLimit) Capped(i int) bool {
+	return r != nil && i < len(r.Limit) && r.Limit[i] > 0
 }
 
 func parseRateLimit(h http.Header) *RateLimit {

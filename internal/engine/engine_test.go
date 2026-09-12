@@ -62,8 +62,46 @@ func TestWebAppliesDefaultsAndShapesTheResult(t *testing.T) {
 	if res.Meta.Requests != 1 || res.Meta.CostUSD != SearchRequestUSD || res.Meta.CostBasis != CostEstimate || res.Meta.RateLimit == nil {
 		t.Errorf("meta: %+v", res.Meta)
 	}
-	if !strings.Contains(res.Meta.String(), "1/1, 1500/2000") {
+	if !strings.Contains(res.Meta.String(), "rate budget left: 1/1, 1500/2000") {
 		t.Errorf("meta line: %s", res.Meta.String())
+	}
+}
+
+func TestMetaLineWithMoreRemainingThanLimits(t *testing.T) {
+	m := Meta{Requests: 1, CostBasis: CostEstimate, RateLimit: &brave.RateLimit{Limit: []int{5}, Remaining: []int{4, 7}}}
+	if got := m.String(); !strings.HasSuffix(got, "rate budget left: 4/5, 7") {
+		t.Errorf("meta line = %q", got)
+	}
+}
+
+func TestLowerBoundsAreValidated(t *testing.T) {
+	var seen map[string]string
+	e := newEngine(t, webBody, &seen)
+	for name, r := range map[string]WebRequest{
+		"count":  {Query: "q", Count: -1},
+		"offset": {Query: "q", Offset: -1},
+	} {
+		seen = nil
+		if _, err := e.Web(context.Background(), r); brave.Code(err) != brave.CodeInvalidArguments || seen != nil {
+			t.Errorf("%s: err=%v sent=%v", name, err, seen != nil)
+		}
+	}
+	for name, r := range map[string]ContextRequest{
+		"count": {Query: "q", Count: -3},
+		"urls":  {Query: "q", MaxURLs: -1},
+	} {
+		seen = nil
+		if _, err := e.Context(context.Background(), r); brave.Code(err) != brave.CodeInvalidArguments || seen != nil {
+			t.Errorf("%s: err=%v sent=%v", name, err, seen != nil)
+		}
+	}
+}
+
+func TestMetaLineShowsAnUncappedWindow(t *testing.T) {
+	m := Meta{Requests: 1, CostUSD: 0.005, CostBasis: CostEstimate,
+		RateLimit: &brave.RateLimit{Limit: []int{50, 0}, Remaining: []int{49, 0}}}
+	if got := m.String(); !strings.HasSuffix(got, "rate budget left: 49/50, uncapped") {
+		t.Errorf("meta line = %q", got)
 	}
 }
 

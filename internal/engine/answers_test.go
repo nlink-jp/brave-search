@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -130,6 +131,52 @@ func TestAnswersValidation(t *testing.T) {
 		if sent != nil {
 			t.Errorf("%s: a request was sent", name)
 		}
+	}
+}
+
+func TestLongQuestionsAreAllowedForAnswers(t *testing.T) {
+	var sent map[string]any
+	e := answersEngine(t, answerStream, &sent, nil)
+	long := strings.Repeat("word ", 80)
+	if _, err := e.Answer(context.Background(), AnswerRequest{Question: long}); err != nil {
+		t.Errorf("an 80-word question was refused: %v", err)
+	}
+	if _, err := e.Research(context.Background(), ResearchRequest{Question: long}, nil); err != nil {
+		t.Errorf("an 80-word research brief was refused: %v", err)
+	}
+}
+
+func TestExplicitTimeoutBeatsTheDerivedDeadline(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(200 * time.Millisecond)
+		_, _ = w.Write([]byte(researchStream))
+	}))
+	t.Cleanup(srv.Close)
+	c := brave.New(srv.URL, "k", "", time.Minute, "t")
+	c.AnswersAPIKey = "ak"
+	e := New(config.Defaults(), c)
+	_, err := e.Research(context.Background(), ResearchRequest{Question: "q", MaxSeconds: 10, Timeout: 20 * time.Millisecond}, nil)
+	if brave.Code(err) != brave.CodeTimeout {
+		t.Errorf("--timeout was not honoured: %v", err)
+	}
+}
+
+func TestNoCitationsInANonEnglishReplyIsNoted(t *testing.T) {
+	bare := "data: {\"choices\":[{\"delta\":{\"content\":\"回答です\"},\"index\":0}]}\ndata: [DONE]\n"
+	e := answersEngine(t, bare, nil, nil)
+	res, err := e.Answer(context.Background(), AnswerRequest{Question: "q", Language: "ja"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Note != NoCitationsNonEnglish {
+		t.Errorf("note = %q", res.Note)
+	}
+	res, err = e.Answer(context.Background(), AnswerRequest{Question: "q", Language: "en"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Note != "" {
+		t.Errorf("an English reply without citations must not blame the language: %q", res.Note)
 	}
 }
 

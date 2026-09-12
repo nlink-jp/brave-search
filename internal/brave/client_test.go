@@ -303,4 +303,24 @@ func TestRateLimitParsing(t *testing.T) {
 	if s, ok := rl.ResetSeconds(); !ok || s != 1 {
 		t.Errorf("with no remaining counts the first reset wins: %d,%v", s, ok)
 	}
+
+	// Measured shape of a pay-as-you-go key: a burst cap and an uncapped
+	// month. The month's remaining 0 must not read as exhausted.
+	h = http.Header{}
+	h.Set("X-RateLimit-Limit", "50, 0")
+	h.Set("X-RateLimit-Remaining", "0, 0")
+	h.Set("X-RateLimit-Reset", "1, 1618921")
+	h.Set("X-RateLimit-Policy", "50;w=1, 0;w=2592000")
+	rl = parseRateLimit(h)
+	if s, ok := rl.ResetSeconds(); !ok || s != 1 {
+		t.Errorf("burst exhausted, month uncapped: reset = %d,%v want 1", s, ok)
+	}
+	h.Set("X-RateLimit-Remaining", "49, 0")
+	rl = parseRateLimit(h)
+	if s, ok := rl.ResetSeconds(); !ok || s != 1 {
+		t.Errorf("nothing exhausted: reset = %d,%v want the first window", s, ok)
+	}
+	if rl.Capped(1) || !rl.Capped(0) {
+		t.Error("Capped misreads the 0 limit")
+	}
 }

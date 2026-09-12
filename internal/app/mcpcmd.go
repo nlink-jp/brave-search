@@ -14,8 +14,8 @@ func runMCP(args []string, version string, stdin io.Reader, stdout, stderr io.Wr
 	fs := newFlagSet("mcp", stderr)
 	fs.StringVar(&configPath, "config", "", "config file path")
 	fs.StringVar(&configPath, "c", "", "config file path (shorthand)")
-	if _, err := parseInterleaved(fs, args); err != nil {
-		return exitError
+	if _, code, ok := parseCommand(fs, args, stdout); !ok {
+		return code
 	}
 
 	// The config is loaded here so a broken file fails at startup, where the

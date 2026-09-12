@@ -36,10 +36,12 @@ in-process dummy JSON-RPC client.
 
 **Fixtures are synthetic, and must stay so.** The Brave ToS forbids storing
 Search Results beyond transient operational use, and defines them to include
-Answers text and third-party content. A fixture is written by hand after the
-*format* (JSON shape, SSE line structure, tag names) has been confirmed
-against the live API; its titles, URLs, snippets and answer text are
-invented. Never paste a live response into the repository.
+Answers text and third-party content. A fixture is written by hand; its
+titles, URLs, snippets and answer text are invented. The *format* (JSON shape,
+SSE line structure, tag names) was confirmed against the live API on
+2026-09-12 for web search, LLM context and single-search answers; the
+research stream's tags are still transcribed from the documentation and
+await a live run. Never paste a live response into the repository.
 
 `internal/mcp/usage_test.go` holds meta-tests that pin `usage.md` to the code
 — every tool name, every argument and every error code must appear in the
@@ -79,8 +81,8 @@ docs/{en,ja}/                RFP (the design record) + project ADRs
   / 120 s vs 20 / 4 / 180): one call bills every search plus tokens.
 - **Config precedence is flag > env > file > default**, keys are strict
   (unknown = error), ranges are validated before any request is spent.
-- **`Api-Version` is sent only when configured.** Whether an arbitrary date is
-  accepted is unverified; until measured, the default is "latest".
+- **`Api-Version` is sent only when configured.** An arbitrary date is
+  rejected with 404 (measured), so the default is "latest".
 - **`notifications/cancelled` is received and ignored.** The MCP spec defines
   it (since 2024-11-05) and allows a receiver to ignore it when the request
   cannot be cancelled; a dispatched upstream search cannot, and is billed
@@ -88,8 +90,46 @@ docs/{en,ja}/                RFP (the design record) + project ADRs
 
 ## Gotchas
 
-Measured against the live API on 2026-09-12 with a bogus key (no real key
-yet). Re-verify before trusting any of this a year from now.
+Measured against the live API on 2026-09-12. Re-verify before trusting any of
+this a year from now.
+
+- **An answer costs ~10× a web search.** One single-search `answer` was
+  billed as 1 search + ~9,800–10,500 input tokens + ~200–300 output tokens =
+  **$0.054–0.058**; Brave feeds the retrieved pages to its model and bills
+  them as input. A web search is $0.005. Say so wherever an agent chooses.
+- **Citations come back only for `language: en`.** Same question, same
+  country: `en` → 29 `<citation>` tags, `ja` → 0. The engine attaches a
+  `note` to a non-English answer that has no citations. Not yet checked for
+  other languages.
+- **The Answers endpoint returns no `X-RateLimit-*` headers**; the Search
+  endpoints do. Answers results therefore carry no `rate_limit`.
+- **A key of the other plan is accepted.** A billed `/web/search` with the
+  Answers key returned 200 with the Answers plan's rate policy (`2;w=1`), so
+  keys are not endpoint-locked — they select which plan is billed and
+  throttled. The tool still sends each plan its own key; a 403
+  `plan_not_subscribed` has never been observed.
+- **A pay-as-you-go key's monthly window is `0`** — policy `50;w=1,
+  0;w=2592000`, remaining `49, 0`. A 0 limit means uncapped, not exhausted;
+  `RateLimit.Capped` and `ResetSeconds` skip such windows, and the CLI prints
+  "uncapped". Reading it as exhausted would say "wait 18 days" on every 429.
+- **`Api-Version` accepts only published versions.** `Api-Version:
+  2026-09-12` → 404 "The requested product api version is not found." The
+  default therefore sends no header (latest); the RFP's "pin the
+  implementation date" is withdrawn. Which dates are published is not
+  documented where we looked.
+- **Brave's stream tags have no escaping.** A literal `<progress>` or
+  `<citation>` in prose is indistinguishable from a control tag by brackets
+  alone. The parser honours JSON-carrying tags only when their body is a JSON
+  object (a literal opener is skipped one tag at a time, so it cannot pair
+  with a real closer), and strips text-carrying tags (`answer`, `blindspots`,
+  `thinking`, `queries`, `analyzing`) as Brave's — a question about "how
+  `<thinking>` tags work" loses that span. Known limit.
+- **Every stream ends with `data: [DONE]`.** A stream that ends without it is
+  reported as `upstream_error` ("incomplete"), never as a complete answer.
+- **A single-search citation observed live had `start_index == end_index`**
+  (165/165, right after the cited sentence): the indexes are insertion points
+  in Brave's own text. The engine trims only trailing whitespace so they keep
+  their meaning.
 
 - **A bad key is a 422, not a 401.** Brave answers
   `{"error":{"code":"SUBSCRIPTION_TOKEN_INVALID","status":422}}` for an
@@ -108,18 +148,19 @@ yet). Re-verify before trusting any of this a year from now.
   error, not by a version error — so it was at least not rejected outright.
   Whether it changes the response shape under a valid key is unmeasured.
 
-Open questions, answered by `make e2e` with real keys and recorded here with a
-date:
+Open questions still to be answered, recorded here with a date when they are:
 
-1. ~~Does one key span the Search and Answers plans?~~ **Answered
-   2026-09-12 (operator, from the account dashboard): one key per plan.**
-   `api_key` serves web/context, `answers_api_key` serves answer/research,
-   and neither is sent to the other's endpoint.
-2. Does `/chat/completions` return `X-RateLimit-*` headers? And how is a
-   valid key on an unsubscribed plan refused — 403, or 422 with another code?
+1. ~~Does one key span the Search and Answers plans?~~ **2026-09-12: the
+   dashboard issues one key per plan, and the API accepts either key on
+   either endpoint (see above). The tool keeps them separate.**
+2. ~~Does `/chat/completions` return `X-RateLimit-*` headers?~~ **2026-09-12:
+   no.** How an unsubscribed plan is refused remains unobserved.
 3. Do Answers / LLM Context fetch target pages live, or serve from Brave's
-   index? (Decides the mcp-tactics tier.)
-4. What does a research call actually cost at the defaults?
+   index? (Decides the mcp-tactics tier.) Not yet checked against Brave's
+   documentation of the retrieval path.
+4. What does a research call actually cost at the defaults, and does its
+   stream carry the documented `<progress>` / `<blindspots>` / `<answer>`
+   tags? Run `BRAVE_SEARCH_E2E_RESEARCH=1 make e2e` once.
 
 ## Conventions (organization-wide)
 

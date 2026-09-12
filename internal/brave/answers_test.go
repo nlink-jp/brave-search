@@ -169,6 +169,7 @@ func TestStreamErrorsAreSurfaced(t *testing.T) {
 		"bad frame":        {"data: {not json}\n", CodeDecode},
 		"empty":            {"\n\n", CodeDecode},
 		"only done":        {"data: [DONE]\n", CodeDecode},
+		"cut before DONE":  {"data: {\"choices\":[{\"delta\":{\"content\":\"half an ans\"},\"index\":0}]}\n", CodeUpstream},
 	} {
 		c, _, _ := serveStream(t, tc.stream)
 		_, _, err := c.Answer(context.Background(), AnswerParams{Question: "q"})
@@ -187,6 +188,70 @@ func TestAnswerStatusErrorsMapLikeSearch(t *testing.T) {
 	}
 }
 
+// Brave's tags have no escaping, so literal tag text in an answer must not be
+// mistaken for a control tag when its body is not a JSON object; a citation
+// whose snippet holds a closing tag is dropped rather than mis-parsed.
+func TestLiteralTagTextSurvives(t *testing.T) {
+	stream := "data: {\"choices\":[{\"delta\":{\"content\":\"HTML has a <progress> element; write <progress value=1> in markup.\"},\"index\":0}]}\n" +
+		"data: {\"choices\":[{\"delta\":{\"content\":\" Models emit <thinking>steps</thinking> too.<citation>{\\\"number\\\":1,\\\"url\\\":\\\"https://example.com/p\\\"}</citation><citation>not json</citation><progress>{\\\"iteration\\\":1}</progress>\"},\"index\":0}]}\n" +
+		"data: [DONE]\n"
+	c, _, _ := serveStream(t, stream)
+	var reports int
+	res, _, err := c.Answer(context.Background(), AnswerParams{Question: "q", Progress: func(Progress) { reports++ }})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(res.Text, "<progress> element") || !strings.Contains(res.Text, "<progress value=1>") {
+		t.Errorf("literal <progress> text was damaged: %q", res.Text)
+	}
+	if !strings.Contains(res.Text, "<citation>not json</citation>") {
+		t.Errorf("a non-JSON <citation> was stripped: %q", res.Text)
+	}
+	if strings.Contains(res.Text, "example.com/p") || strings.Contains(res.Text, `"iteration"`) {
+		t.Errorf("a JSON tag leaked into the text: %q", res.Text)
+	}
+	if len(res.Citations) != 1 || len(res.Progress) != 1 || reports != 1 {
+		t.Errorf("citations=%d progress=%d reports=%d", len(res.Citations), len(res.Progress), reports)
+	}
+	// The text-carrying debug tag cannot be told apart and is stripped —
+	// the documented limit.
+	if strings.Contains(res.Text, "steps") {
+		t.Errorf("expected the literal <thinking> text to be stripped (documented limit): %q", res.Text)
+	}
+}
+
+// SSE framing variants: data without a space, CRLF line endings, a frame
+// with several choices, and comment/event lines between frames.
+func TestStreamFramingVariants(t *testing.T) {
+	stream := ": comment\r\n" +
+		"event: message\r\n" +
+		"data:{\"choices\":[{\"delta\":{\"content\":\"one \"},\"index\":0},{\"delta\":{\"content\":\"two\"},\"index\":1}]}\r\n" +
+		"\r\n" +
+		"data: {\"choices\":[{\"delta\":{\"content\":\" three\"},\"index\":0,\"finish_reason\":\"stop\"}]}\r\n" +
+		"data: [DONE]\r\n"
+	c, _, _ := serveStream(t, stream)
+	res, _, err := c.Answer(context.Background(), AnswerParams{Question: "q"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Text != "one two three" || res.Chunks != 2 || res.FinishReason != "stop" {
+		t.Errorf("text=%q chunks=%d finish=%q", res.Text, res.Chunks, res.FinishReason)
+	}
+}
+
+func TestLeadingWhitespaceIsKeptForCitationIndexes(t *testing.T) {
+	stream := "data: {\"choices\":[{\"delta\":{\"content\":\"<answer>\\n\\nText.<citation>{\\\"number\\\":1,\\\"url\\\":\\\"https://example.com\\\",\\\"start_index\\\":7,\\\"end_index\\\":7}</citation>\\n</answer>\"},\"index\":0}]}\n" +
+		"data: [DONE]\n"
+	c, _, _ := serveStream(t, stream)
+	res, _, err := c.Answer(context.Background(), AnswerParams{Question: "q", Research: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Text != "\n\nText." {
+		t.Errorf("text = %q (leading whitespace must survive, trailing must go)", res.Text)
+	}
+}
+
 func TestUsageAbsentIsNotAnError(t *testing.T) {
 	c, _, _ := serveStream(t, "data: {\"choices\":[{\"delta\":{\"content\":\"plain answer\"},\"index\":0}]}\ndata: [DONE]\n")
 	res, _, err := c.Answer(context.Background(), AnswerParams{Question: "q"})
@@ -195,6 +260,16 @@ func TestUsageAbsentIsNotAnError(t *testing.T) {
 	}
 	if res.Usage != nil || res.Text != "plain answer" || len(res.Citations) != 0 {
 		t.Errorf("%+v", res)
+	}
+}
+
+func TestJSONTagHelpers(t *testing.T) {
+	s := `a <x> literal <x>{"k":1}</x> b <x>{"k":2}</x> <x>tail`
+	if got := completeJSONTags(s, "x"); len(got) != 2 || got[0] != `{"k":1}` || got[1] != `{"k":2}` {
+		t.Errorf("completeJSONTags = %v", got)
+	}
+	if got := stripJSONTags(s, "x"); got != "a <x> literal  b  <x>tail" {
+		t.Errorf("stripJSONTags = %q", got)
 	}
 }
 

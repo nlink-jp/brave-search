@@ -76,7 +76,7 @@ Commands:
   context <query>          LLM Context: pre-extracted page chunks for grounding
   answer <question>        Answers: a grounded answer with citations (one search)
   research <question>      Answers research mode: multi-step, multi-search answer
-  auth check               Verify the API key and which plans it unlocks
+  auth check               Verify both API keys (one per plan), without spending
   mcp                      Run as a local MCP server (stdio)
   version                  Print the version
 
@@ -129,7 +129,14 @@ research is the expensive command: up to max-queries searches per iteration,
 max-iterations times, plus tokens. Its progress is printed to stderr while it
 runs, because a silent wait of up to five minutes looks like a hang.
 
-The API key is read from [api] api_key in the config file or from
-BRAVE_SEARCH_API_KEY. It is never accepted as a flag.
+Brave issues one API key per plan. The Search key (web, context) is read from
+[api] api_key or BRAVE_SEARCH_API_KEY; the Answers key (answer, research) from
+[api] answers_api_key or BRAVE_SEARCH_ANSWERS_API_KEY. Keys are never accepted
+as flags. A query word that starts with "-" (the exclusion operator) goes
+after "--": brave-search web -- go -tutorial
+
+An answer costs about ten times a web search (Brave bills the search results
+it feeds its model as input tokens), and citations are unreliable for
+non-English replies (--lang en had them every time; ja one run in three).
 `)
 }

@@ -177,6 +177,73 @@ func TestFlagsAfterTheQueryAreNotDropped(t *testing.T) {
 	}
 }
 
+// Flags beat the environment, which beats the file.
+func TestFlagBeatsEnvironment(t *testing.T) {
+	u := &upstream{}
+	startUpstream(t, u)
+	t.Setenv(config.EnvCountry, "DE")
+	t.Setenv(config.EnvSearchLang, "de")
+	t.Setenv(config.EnvSafesearch, "off")
+	t.Setenv(config.EnvCount, "3")
+	var stdout, stderr bytes.Buffer
+	if code := run([]string{"web", "q", "--country", "jp", "--lang", "ja", "--safesearch", "strict", "--count", "2"}, "t", nil, &stdout, &stderr); code != exitOK {
+		t.Fatalf("exit %d: %s", code, stderr.String())
+	}
+	q := u.last.URL.Query()
+	for k, want := range map[string]string{"country": "JP", "search_lang": "ja", "safesearch": "strict", "count": "2"} {
+		if q.Get(k) != want {
+			t.Errorf("%s = %q, want the flag value %q", k, q.Get(k), want)
+		}
+	}
+}
+
+// A query word that starts with "-" is a search operator, passed after "--".
+func TestDoubleDashEndsFlagParsing(t *testing.T) {
+	u := &upstream{}
+	startUpstream(t, u)
+	var stdout, stderr bytes.Buffer
+	if code := run([]string{"web", "--count", "2", "--", "go", "-tutorial", "--extra-snippets"}, "t", nil, &stdout, &stderr); code != exitOK {
+		t.Fatalf("exit %d: %s", code, stderr.String())
+	}
+	q := u.last.URL.Query()
+	if q.Get("q") != "go -tutorial --extra-snippets" || q.Get("count") != "2" {
+		t.Errorf("query = %v", q)
+	}
+	// Without "--", an undefined -word is a usage error, not a silent drop.
+	if code := run([]string{"web", "go", "-tutorial"}, "t", nil, &stdout, &stderr); code != exitError {
+		t.Errorf("exit %d, want %d", code, exitError)
+	}
+}
+
+// -h on a subcommand is help, not an error.
+func TestSubcommandHelpSucceedsOnStdout(t *testing.T) {
+	isolate(t)
+	for _, cmd := range []string{"web", "context", "answer", "research", "auth", "mcp"} {
+		var stdout, stderr bytes.Buffer
+		if code := run([]string{cmd, "-h"}, "t", nil, &stdout, &stderr); code != exitOK {
+			t.Errorf("%s -h: exit %d", cmd, code)
+		}
+		if !strings.Contains(stdout.String(), "Usage:") || stderr.Len() != 0 {
+			t.Errorf("%s -h: stdout=%q stderr=%q", cmd, stdout.String()[:min(40, stdout.Len())], stderr.String())
+		}
+	}
+}
+
+func TestTimeoutExitsOne(t *testing.T) {
+	isolate(t)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { <-r.Context().Done() }))
+	t.Cleanup(srv.Close)
+	t.Setenv(config.EnvBaseURL, srv.URL)
+	t.Setenv(config.EnvAPIKey, "k")
+	var stdout, stderr bytes.Buffer
+	if code := run([]string{"web", "q", "--timeout", "30ms"}, "t", nil, &stdout, &stderr); code != exitUpstream {
+		t.Errorf("exit %d, want %d (%s)", code, exitUpstream, stderr.String())
+	}
+	if !strings.Contains(stderr.String(), "deadline") {
+		t.Errorf("stderr: %s", stderr.String())
+	}
+}
+
 func TestConfigFileDefaultsReachTheRequest(t *testing.T) {
 	u := &upstream{}
 	startUpstream(t, u)

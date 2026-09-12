@@ -39,8 +39,10 @@ e2e/                    Live tests behind the `e2e` build tag
 - **No disk cache, no live-response fixtures — this is the ToS, not a
   preference.** §3(b)(i) permits only transient retention of results, and
   "Search Results" includes Answers text. There is no `cache` subcommand and
-  no `[cache]` section; every test fixture is synthetic (format confirmed
-  against the live API, content invented). Do not add either.
+  no `[cache]` section; every test fixture is synthetic — content invented,
+  format confirmed against the live API on 2026-09-12 for web, context and
+  single-search answers (research's stream shape is still a transcription of
+  the documentation). Do not add either.
 - **The parameter matrix in the RFP is the single mapping** of CLI flag ↔ MCP
   argument ↔ config key ↔ upstream parameter. Add a parameter there first;
   the three surfaces derive from it.
@@ -51,6 +53,11 @@ e2e/                    Live tests behind the `e2e` build tag
   mode. Tag parsing lives in the client; the CLI and MCP see structures.
 - **`research` progress goes to stderr** while it runs. A silent five-minute
   wait is indistinguishable from a hang.
+- **Brave's stream tags have no escaping.** JSON-carrying tags (citation,
+  usage, progress) are honoured only when their body is a JSON object, so
+  literal `<progress>` in prose survives; text-carrying tags (answer,
+  blindspots, thinking, queries, analyzing) cannot be told apart and are
+  stripped. Known limit, recorded in AGENTS.md.
 - **Ranges are validated locally** before a request is spent. The upstream
   ranges are constants in `internal/config`; re-verify them against the
   documentation when they change.

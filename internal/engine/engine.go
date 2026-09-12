@@ -152,17 +152,18 @@ func (m Meta) String() string {
 		fmt.Fprintf(&b, " · tokens: %d in / %d out", m.TokensIn, m.TokensOut)
 	}
 	if rl := m.RateLimit; rl != nil && len(rl.Remaining) > 0 {
-		b.WriteString(" · rate budget left:")
+		var parts []string
 		for i, rem := range rl.Remaining {
-			if i > 0 {
-				b.WriteString(",")
-			}
-			if i < len(rl.Limit) {
-				fmt.Fprintf(&b, " %d/%d", rem, rl.Limit[i])
-			} else {
-				fmt.Fprintf(&b, " %d", rem)
+			switch {
+			case rl.Capped(i):
+				parts = append(parts, fmt.Sprintf("%d/%d", rem, rl.Limit[i]))
+			case i < len(rl.Limit):
+				parts = append(parts, "uncapped") // a 0 limit is "no quota", not "none left"
+			default:
+				parts = append(parts, fmt.Sprintf("%d", rem))
 			}
 		}
+		b.WriteString(" · rate budget left: " + strings.Join(parts, ", "))
 	}
 	return b.String()
 }

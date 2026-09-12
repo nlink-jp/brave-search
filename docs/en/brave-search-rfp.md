@@ -416,6 +416,53 @@ The design reads as returning Brave's index and pre-extracted chunks, but it
 matters for mcp-tactics' tier (third-party query vs target contact), so Phase 1
 checks the official description and records it.
 
+## Post-implementation corrections (2026-09-12)
+
+Where live measurement contradicted this RFP. AGENTS.md Gotchas is the
+canonical record from here on.
+
+1. **One key per plan** (confirmed by the operator on the dashboard). Added
+   `[api] answers_api_key` / `BRAVE_SEARCH_ANSWERS_API_KEY`, **required** for
+   answer / research. §5's "fallback to `api_key`" is withdrawn — without it
+   the tool refuses before sending (`missing_api_key`). The API nevertheless
+   accepts either key on either endpoint (`/web/search` with the Answers key
+   returned 200 under the Answers plan's rate policy): a key is not
+   endpoint-locked, it selects which plan is billed and throttled. The tool
+   keeps them separate.
+2. **`Api-Version` defaults to empty (latest).** An arbitrary date
+   (2026-09-12) was refused with 404 "product api version is not found".
+   "Pin the implementation date" is withdrawn.
+3. **A bad key is a 422, not a 401** (`error.code = SUBSCRIPTION_TOKEN_INVALID`),
+   the same status as a validation failure (`VALIDATION`). Errors are mapped
+   by upstream code first, status second; `auth check` relies on that
+   distinction for its unbilled probe.
+4. **One answer ≈ $0.054–0.058** (1 search + ~10,000 input tokens). §7's
+   pricing note ("$4 per 1,000 searches + tokens") missed that the retrieved
+   pages are billed as input tokens. Ten times a web search. Stated in
+   usage.md and README.
+5. **Citations are emitted only for `language=en`** (same question: 29 in
+   English, 0 in Japanese, country constant). A non-English answer without
+   citations carries a `note`.
+6. **The Answers endpoint returns no `X-RateLimit-*` headers** (the Search
+   endpoints do). §2's "every command reports the budget left" holds for the
+   Search commands only.
+7. **A pay-as-you-go key's monthly window has limit 0** (`50;w=1,
+   0;w=2592000`): 0 means uncapped, not exhausted; `ResetSeconds` skips such
+   windows.
+8. **Result shapes as built**: `llm_context` returns `chunks[]` (sources
+   folded into each chunk); `answer`'s usage is folded into `meta`
+   (`searches` / `tokens_in` / `tokens_out` / `cost_usd`). §2's tool table
+   ("`grounding.generic[]` + `sources`", "`usage`") predates implementation.
+9. **The query length limit (400 chars / 50 words) applies to web / context
+   only**, per the matrix's scope column; an implementation that briefly
+   applied it to answer / research questions was corrected.
+10. **The stream tags have no escaping.** JSON-carrying tags (citation /
+    usage / progress) are honoured only when their body is a JSON object;
+    text-carrying tags (answer / blindspots / debug) are stripped as Brave's
+    since they cannot be told apart. Recorded as a known limit in AGENTS.md.
+11. **The research stream shape is unconfirmed** (one live run ≈ $0.1,
+    awaiting the operator's go-ahead).
+
 ---
 
 ## Discussion Log

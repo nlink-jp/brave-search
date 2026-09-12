@@ -152,6 +152,32 @@ func TestSearchPathOrder(t *testing.T) {
 	}
 }
 
+// The shared environment variables fan out to both [search] and [answers],
+// and every other variable reaches its field.
+func TestEveryEnvironmentVariableIsRead(t *testing.T) {
+	isolate(t)
+	t.Setenv(EnvCountry, "jp")
+	t.Setenv(EnvSafesearch, "strict")
+	t.Setenv(EnvLanguage, "ja")
+	t.Setenv(EnvAPIVersion, "2025-01-01")
+	t.Setenv(EnvTimeout, "7.5")
+	t.Setenv(EnvBaseURL, "http://localhost:1")
+	cfg, err := Load("", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Search.Country != "jp" || cfg.Answers.Country != "jp" || cfg.Search.Safesearch != "strict" || cfg.Answers.Safesearch != "strict" {
+		t.Errorf("fan-out: %+v / %+v", cfg.Search, cfg.Answers)
+	}
+	if cfg.Answers.Language != "ja" || cfg.APIVersion != "2025-01-01" || cfg.Timeout != 7500*time.Millisecond || cfg.BaseURL != "http://localhost:1" {
+		t.Errorf("%+v", cfg.Redacted())
+	}
+	t.Setenv(EnvTimeout, "soon")
+	if _, err := Load("", 0); err == nil {
+		t.Error("a non-numeric timeout was accepted")
+	}
+}
+
 func TestExplicitMissingConfigIsAnError(t *testing.T) {
 	dir := isolate(t)
 	if _, err := Load(filepath.Join(dir, "nope.toml"), 0); err == nil {

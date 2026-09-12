@@ -150,6 +150,6 @@ func TestLiveResearch(t *testing.T) {
 	if strings.TrimSpace(res.Answer) == "" {
 		t.Fatal("empty research answer")
 	}
-	t.Logf("MEASURED: research elapsed=%s progress_reports=%d citations=%d blindspots=%q meta=%+v",
-		time.Since(start).Round(time.Second), reports, len(res.Citations), res.Blindspots, res.Meta)
+	t.Logf("MEASURED: research elapsed=%s progress_reports=%d citations=%d blindspots_len=%d meta=%+v",
+		time.Since(start).Round(time.Second), reports, len(res.Citations), len(res.Blindspots), res.Meta)
 }

@@ -21,9 +21,9 @@ func runWeb(args []string, version string, stdout, stderr io.Writer) int {
 	fs.BoolVar(&r.ExtraSnippets, "extra-snippets", false, "up to five extra excerpts per result")
 	fs.BoolVar(&r.Full, "full", false, "pass every upstream field through")
 
-	positional, err := parseInterleaved(fs, args)
-	if err != nil {
-		return exitError
+	positional, code, ok := parseCommand(fs, args, stdout)
+	if !ok {
+		return code
 	}
 	q, ok := queryArg(positional, stderr, "query")
 	if !ok {

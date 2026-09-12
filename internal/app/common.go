@@ -2,6 +2,7 @@ package app
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -52,11 +53,10 @@ func newClient(cfg *config.Config, version string) *brave.Client {
 	return c
 }
 
-// newFlagSet builds a flag set whose usage is the global usage text on stderr.
+// newFlagSet builds a flag set that reports errors on stderr.
 func newFlagSet(name string, stderr io.Writer) *flag.FlagSet {
 	fs := flag.NewFlagSet(name, flag.ContinueOnError)
 	fs.SetOutput(stderr)
-	fs.Usage = func() { usage(stderr) }
 	return fs
 }
 
@@ -67,7 +67,9 @@ func newFlagSet(name string, stderr io.Writer) *flag.FlagSet {
 // would read `web "go generics" --count 3` as two positionals and silently
 // ignore the count. Writing the query first is the natural way to type this,
 // and a flag that is quietly dropped is worse than one that is rejected — so
-// parse in rounds, taking one positional at a time.
+// parse in rounds, taking one positional at a time. A bare `--` ends flag
+// parsing for everything after it, which is how a query word that starts
+// with `-` (the exclusion operator, `-inurl:x`) is passed.
 func parseInterleaved(fs *flag.FlagSet, args []string) ([]string, error) {
 	var positional []string
 	rest := args
@@ -79,9 +81,39 @@ func parseInterleaved(fs *flag.FlagSet, args []string) ([]string, error) {
 		if len(rest) == 0 {
 			return positional, nil
 		}
+		// fs.Parse consumed a leading "--" itself; if the argument it
+		// stopped on was preceded by one, everything left is positional.
+		if consumedTerminator(fs, rest, args) {
+			return append(positional, rest...), nil
+		}
 		positional = append(positional, rest[0])
 		rest = rest[1:]
 	}
+}
+
+// consumedTerminator reports whether the round that produced rest ended on a
+// "--" terminator: fs.Args() then starts right after it, which is visible as
+// the argument before rest[0] in the original list being "--".
+func consumedTerminator(fs *flag.FlagSet, rest, args []string) bool {
+	idx := len(args) - len(rest) - 1
+	return idx >= 0 && args[idx] == "--"
+}
+
+// parseCommand parses a command's flags and positionals and applies the
+// shared conventions: `-h`/`--help` prints the usage on stdout and succeeds,
+// any other parse error is a usage error. ok is false when the caller should
+// return code.
+func parseCommand(fs *flag.FlagSet, args []string, stdout io.Writer) (positional []string, code int, ok bool) {
+	fs.Usage = func() {}
+	positional, err := parseInterleaved(fs, args)
+	if errors.Is(err, flag.ErrHelp) {
+		usage(stdout)
+		return nil, exitOK, false
+	}
+	if err != nil {
+		return nil, fail(fs.Output(), exitError, "%v", err), false
+	}
+	return positional, 0, true
 }
 
 // queryArg joins the positionals into the query. Accepting several words

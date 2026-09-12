@@ -35,12 +35,14 @@ Brave, and every result is returned inline.
 
 ## Tools
 
-Every search tool shares four optional arguments: `country` (two-letter code
-or ALL), `search_lang` (for web_search and llm_context) or `language` (for the
-Answers tools), `freshness` (`pd` / `pw` / `pm` / `py` / `YYYY-MM-DDtoYYYY-MM-DD`)
-and `safesearch` (`off` / `moderate` / `strict`). Unset arguments take the
-operator's configured defaults (Brave's own: US, en, moderate). Every result
-ends with a `meta` object:
+Every tool takes `country` (two-letter code or ALL) and `safesearch` (`off` /
+`moderate` / `strict`). The Search tools (web_search, llm_context) also take
+`search_lang` and `freshness` (`pd` / `pw` / `pm` / `py` /
+`YYYY-MM-DDtoYYYY-MM-DD`); the Answers tools (answer, research) take
+`language` (the reply language) and no freshness. Arguments are decoded
+strictly: one the tool does not declare is an `invalid_arguments` error, not
+ignored. Unset arguments take the operator's configured defaults (Brave's own:
+US, en, moderate). Every result ends with a `meta` object:
 
 ```json
 "meta": {"requests": 1, "cost_usd": 0.005, "cost_basis": "list_price_estimate",
@@ -49,8 +51,19 @@ ends with a `meta` object:
 
 `cost_basis` is `list_price_estimate` for the Search endpoints (Brave bills per
 request at its published price) and `reported_by_brave` for the Answers tools
-(Brave reports the exact figure). `rate_limit` lists one value per window —
-usually the per-second burst limit first and the monthly quota second.
+(Brave reports the exact figure; `not_reported_by_brave` means the stream
+carried no usage report, so the cost is unknown, not zero). `rate_limit` lists
+one value per window — the per-second burst limit first and the monthly quota
+second; a `limit` of 0 means that window is uncapped, not exhausted. The
+Answers endpoint returns no rate-limit headers (measured 2026-09-12), so
+`answer` and `research` results carry no `rate_limit`.
+
+**What a call really costs (measured 2026-09-12).** A `web_search` or
+`llm_context` call is one request, $0.005 at list price. An `answer` call is
+one search plus about **10,000 input tokens** — Brave feeds the search results
+to its model and bills them — so a single answer cost **$0.054–0.058**, ten
+times a web search. A `research` call multiplies that by the searches it runs.
+Reach for `web_search` or `llm_context` first when they will do.
 
 ### `web_search`
 
@@ -58,7 +71,7 @@ Ranked web results for one query. One billed request.
 
 | Argument | Type | Meaning |
 |---|---|---|
-| `query` | string, required | 1-400 characters, at most 50 words. Search operators (`site:`, `-term`, `"phrase"`) work. |
+| `query` | string, required | 1-400 characters, at most 50 words. Search operators (`site:`, `-term`, `"phrase"`) work as written here; from the CLI, a leading `-` needs `--` before the query. |
 | `count` | integer | Results, 1-20 (default 10). |
 | `offset` | integer | Page, 0-9. Walk further results with the same `count` while `more_results_available` is true. |
 | `country`, `search_lang`, `freshness`, `safesearch` | string | As above. |
@@ -99,15 +112,24 @@ per search plus tokens; `meta` carries Brave's exact cost report.
 
 | Argument | Type | Meaning |
 |---|---|---|
-| `question` | string, required | The question. Exactly one message is sent; there is no conversation. |
+| `question` | string, required | The question, at any length. Exactly one message is sent; there is no conversation. |
 | `country`, `language`, `safesearch` | string | As above (`language` is the reply language). |
 | `max_tokens` | integer | Reply token cap. Omit to let the API decide. |
 
 Result: `question`, `mode: "answer"`, `answer` (the text), `citations[]` of
-`{number, url, snippet, start_index, end_index}` (indexes into `answer`), and
-`meta` with `searches`, `tokens_in`, `tokens_out` and `cost_usd` as Brave
-reported them (`cost_basis: reported_by_brave`; `not_reported_by_brave` if the
-stream carried no usage report, in which case the cost is unknown, not zero).
+`{number, url, snippet, favicon, start_index, end_index}` (the indexes are
+Brave's positions in its own answer text; a citation observed live had
+`start_index == end_index`, i.e. an insertion point after the cited sentence),
+`note` (present only when something needs saying — see below), and `meta`
+with `searches`, `tokens_in`, `tokens_out` and `cost_usd` as Brave reported
+them.
+
+**Citations are unreliable for non-English replies.** Measured 2026-09-12 on
+one question, country held constant: `language: "en"` carried citations in
+every run (29, 29); `language: "ja"` in one run of three (0, 0, 24). A
+non-English reply that comes back without citations carries a `note` saying
+so. If sources matter, ask again or ask in English, and never treat an empty
+`citations` as "no sources exist".
 
 ### `research`
 
@@ -131,7 +153,9 @@ proved insufficient.
 
 Result: as `answer`, with `mode: "research"`, plus `blindspots` (what Brave
 says it could not cover — read it before trusting the answer) and
-`progress[]` (Brave's iteration reports, for provenance).
+`progress[]` (Brave's iteration reports, for provenance: each is
+`{fields}` with Brave's own keys when the report was JSON, else `{raw}`).
+The research stream's exact tag shape has not yet been confirmed live.
 
 ### `get_usage`
 
@@ -144,10 +168,10 @@ Tool errors come back as `isError: true` with a JSON body
 
 | Code | Meaning | What to do |
 |---|---|---|
-| `invalid_arguments` | An argument is missing, misspelled, or out of range. | Fix the call. Ranges are in this manual; nothing was sent upstream. |
+| `invalid_arguments` | An argument is missing, misspelled, or out of range — refused here before anything was sent — or, rarely, refused by Brave (`details.upstream_code: VALIDATION`) after a request that was not billed. | Fix the call. Ranges are in this manual. |
 | `missing_api_key` | No API key is configured for this endpoint. Nothing was sent. | Brave issues one key per plan. The operator sets `[api] api_key` (Search plan: web_search, llm_context) or `[api] answers_api_key` (Answers plan: answer, research) in the config file, or `BRAVE_SEARCH_API_KEY` / `BRAVE_SEARCH_ANSWERS_API_KEY`. The message names the one that is missing. |
-| `unauthorized` | Brave rejected the key (401). | The operator checks the key with `brave-search auth check`. Do not retry. |
-| `plan_not_subscribed` | The key is valid but the endpoint's plan is not active (403). | Tell the operator which plan (Search or Answers) the tool needs. Do not retry. |
+| `unauthorized` | Brave rejected the key, or saw none (a 422 with upstream code `SUBSCRIPTION_TOKEN_INVALID`, not a 401 — measured). | The operator checks the key with `brave-search auth check`. Do not retry. |
+| `plan_not_subscribed` | Brave answered 403. Not yet observed live; a key of the other plan was *accepted* on 2026-09-12, so this may never occur. | Tell the operator which plan (Search or Answers) the tool needs. Do not retry. |
 | `rate_limited` | Too many requests (429). `details.reset_seconds` says how long to wait. | Wait that long, then retry once. Do not loop. |
 | `upstream_error` | Brave answered 5xx or something unexpected. | Retry once after a few seconds; then report it. |
 | `timeout` | The request exceeded its deadline. | For `research`, lower `max_seconds` (the deadline is `max_seconds + 30 s`); otherwise retry once. |

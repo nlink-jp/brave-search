@@ -18,9 +18,9 @@ func runAnswer(args []string, version string, stdout, stderr io.Writer) int {
 	f.register(fs)
 	fs.IntVar(&r.MaxTokens, "max-tokens", 0, "reply token cap (default: the API's)")
 
-	positional, err := parseInterleaved(fs, args)
-	if err != nil {
-		return exitError
+	positional, code, ok := parseCommand(fs, args, stdout)
+	if !ok {
+		return code
 	}
 	q, ok := queryArg(positional, stderr, "question")
 	if !ok {
@@ -53,15 +53,16 @@ func runResearch(args []string, version string, stdout, stderr io.Writer) int {
 	fs.IntVar(&r.MaxIterations, "max-iterations", 0, "iterations, 1-5")
 	fs.IntVar(&r.MaxSeconds, "max-seconds", 0, "time budget in seconds, 1-300")
 
-	positional, err := parseInterleaved(fs, args)
-	if err != nil {
-		return exitError
+	positional, code, ok := parseCommand(fs, args, stdout)
+	if !ok {
+		return code
 	}
 	q, ok := queryArg(positional, stderr, "question")
 	if !ok {
 		return exitError
 	}
 	r.Question, r.Country, r.Language, r.Safesearch = q, f.country, f.lang, f.safesearch
+	r.Timeout = f.timeout // an explicit --timeout beats the derived deadline
 
 	_, eng, err := f.build(version)
 	if err != nil {
@@ -103,6 +104,9 @@ func renderAnswer(w io.Writer, res *engine.AnswerResult) {
 	}
 	if res.Blindspots != "" {
 		fmt.Fprintf(w, "\nBlind spots (declared by Brave):\n%s\n", res.Blindspots)
+	}
+	if res.Note != "" {
+		fmt.Fprintf(w, "\nnote: %s\n", res.Note)
 	}
 	fmt.Fprintf(w, "\n%s\n", res.Meta.String())
 }

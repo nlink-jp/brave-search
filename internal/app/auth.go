@@ -52,9 +52,9 @@ func runAuth(args []string, version string, stdout, stderr io.Writer) int {
 	var f commonFlags
 	fs := newFlagSet("auth", stderr)
 	f.register(fs)
-	positional, err := parseInterleaved(fs, args)
-	if err != nil {
-		return exitError
+	positional, code, ok := parseCommand(fs, args, stdout)
+	if !ok {
+		return code
 	}
 	if len(positional) != 1 || positional[0] != "check" {
 		return fail(stderr, exitError, "auth takes one subcommand: check")
@@ -68,15 +68,15 @@ func runAuth(args []string, version string, stdout, stderr io.Writer) int {
 	st := authStatus{
 		ConfigFile:  cfg.Path,
 		SearchPaths: config.SearchPaths(),
-		Note: "Each plan was probed with a deliberately invalid request; Brave bills only successful " +
-			"responses, so this spent nothing. valid means the key was accepted and the request " +
-			"refused as intended.",
+		Note: "Each plan was probed with a deliberately invalid request. Brave documents that only " +
+			"successful responses are billed, so this should have spent nothing. valid means the key " +
+			"was accepted and the request refused as intended.",
 	}
 	st.Plans = append(st.Plans,
 		probePlan(client, "Search", []string{"web", "context"}, "[api] api_key / BRAVE_SEARCH_API_KEY", brave.EndpointWebSearch),
 		probePlan(client, "Answers", []string{"answer", "research"}, "[api] answers_api_key / BRAVE_SEARCH_ANSWERS_API_KEY", brave.EndpointAnswers),
 	)
-	code := exitOK
+	code = exitOK
 	st.OK = true
 	for _, p := range st.Plans {
 		switch p.Status {
