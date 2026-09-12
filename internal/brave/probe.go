@@ -11,13 +11,13 @@ import (
 // endpoint, and a real search would be billed, but the documentation says
 // only successful responses count against the quota — so a request that is
 // certain to fail validation (no query; no message) tells the key's status
-// for free. A 401 means the key was rejected, a 403 that the plan is not
-// subscribed, a 400/422 that the key was accepted and the request refused as
-// intended. nil means Brave answered 2xx, which would be a surprise but is
-// still "the key works".
-//
-// Whether Brave really checks the key before validating the request is a
-// live measurement; the e2e suite pins it.
+// for free. Measured 2026-09-12: a bad key is answered 422 with
+// SUBSCRIPTION_TOKEN_INVALID (mapped to unauthorized), a missing header 422
+// with VALIDATION naming the header (also unauthorized), and a bad request
+// under an accepted key 422 with VALIDATION (invalid_arguments). So the
+// error's upstream code, not its status, is what the caller reads. nil means
+// Brave answered 2xx, which would be a surprise but is still "the key works".
+// How a valid key on an unsubscribed plan is refused is still unmeasured.
 func (c *Client) Probe(ctx context.Context, endpoint string) (*Meta, error) {
 	var req *http.Request
 	var err error

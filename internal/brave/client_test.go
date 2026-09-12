@@ -213,6 +213,31 @@ func TestStatusMapping(t *testing.T) {
 	}
 }
 
+// Measured 2026-09-12 with a bogus key: Brave answers 422, not 401, and the
+// body's error.code is what tells a bad key from a bad request.
+func TestUpstreamCodeBeatsStatus(t *testing.T) {
+	for name, tc := range map[string]struct {
+		status int
+		body   string
+		want   string
+	}{
+		"bad token is 422 upstream": {422, `{"error":{"code":"SUBSCRIPTION_TOKEN_INVALID","detail":"The provided subscription token is invalid.","meta":{"component":"authentication"},"status":422},"type":"ErrorResponse"}`, CodeUnauthorized},
+		"missing token header":      {422, `{"error":{"code":"VALIDATION","detail":"Unable to validate request parameter(s)","meta":{"errors":[{"input":null,"loc":["header","x-subscription-token"],"msg":"Field required","type":"missing"}]},"status":422},"type":"ErrorResponse"}`, CodeUnauthorized},
+		"plain validation":          {422, `{"error":{"code":"VALIDATION","detail":"Unable to validate request parameter(s)","meta":{"errors":[{"loc":["query","q"],"msg":"Field required","type":"missing"}]},"status":422},"type":"ErrorResponse"}`, CodeInvalidArguments},
+		"rate limited by code":      {429, `{"error":{"code":"RATE_LIMITED","detail":"slow down"}}`, CodeRateLimited},
+	} {
+		c, _ := serve(t, tc.status, tc.body, map[string]string{"X-RateLimit-Reset": "2"})
+		_, _, err := c.WebSearch(context.Background(), WebParams{Query: "x"})
+		if Code(err) != tc.want {
+			t.Errorf("%s: code = %s, want %s (%v)", name, Code(err), tc.want, err)
+		}
+		var e *Error
+		if errors.As(err, &e) && tc.want == CodeRateLimited && e.Details["reset_seconds"] != 2 {
+			t.Errorf("%s: reset_seconds = %v", name, e.Details["reset_seconds"])
+		}
+	}
+}
+
 func TestNonJSONErrorBodyStillMaps(t *testing.T) {
 	c, _ := serve(t, 502, "<html>bad gateway</html>", nil)
 	_, _, err := c.WebSearch(context.Background(), WebParams{Query: "x"})

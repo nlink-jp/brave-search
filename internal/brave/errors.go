@@ -108,6 +108,27 @@ func statusError(endpoint string, resp *http.Response, rl *RateLimit) *Error {
 	}
 
 	e := &Error{Status: resp.StatusCode, Details: details}
+	// The upstream code decides before the status does. Measured 2026-09-12:
+	// a bad key is answered 422 with code SUBSCRIPTION_TOKEN_INVALID, the
+	// same status as a validation failure (code VALIDATION), and a missing
+	// token header is a VALIDATION error naming the header. The status alone
+	// cannot tell "your key is wrong" from "your request is wrong".
+	switch strings.ToUpper(eb.Error.Code) {
+	case "SUBSCRIPTION_TOKEN_INVALID":
+		e.Code, e.Message = CodeUnauthorized, "Brave rejected the API key: "+summary
+		return e
+	case "VALIDATION":
+		if isMissingTokenHeader(eb.Error.Meta) {
+			e.Code, e.Message = CodeUnauthorized, "Brave saw no API key on the request: "+summary
+			return e
+		}
+		e.Code, e.Message = CodeInvalidArguments, "Brave rejected the request parameters: "+summary
+		return e
+	case "RATE_LIMITED":
+		e.Code, e.Message = CodeRateLimited, "Brave rate limit exceeded: "+summary
+		addReset(details, rl)
+		return e
+	}
 	switch {
 	case resp.StatusCode == http.StatusUnauthorized:
 		e.Code, e.Message = CodeUnauthorized, "Brave rejected the API key: "+summary
@@ -115,12 +136,7 @@ func statusError(endpoint string, resp *http.Response, rl *RateLimit) *Error {
 		e.Code, e.Message = CodePlanNotSubscribed, "Brave refused this endpoint for the configured key (is its plan subscribed?): "+summary
 	case resp.StatusCode == http.StatusTooManyRequests:
 		e.Code, e.Message = CodeRateLimited, "Brave rate limit exceeded: "+summary
-		if rl != nil {
-			if s, ok := rl.ResetSeconds(); ok {
-				details["reset_seconds"] = s
-			}
-			details["rate_limit"] = rl
-		}
+		addReset(details, rl)
 	case resp.StatusCode == http.StatusBadRequest || resp.StatusCode == http.StatusUnprocessableEntity:
 		e.Code, e.Message = CodeInvalidArguments, "Brave rejected the request parameters: "+summary
 	case resp.StatusCode >= 500:
@@ -129,6 +145,38 @@ func statusError(endpoint string, resp *http.Response, rl *RateLimit) *Error {
 		e.Code, e.Message = CodeUpstream, fmt.Sprintf("unexpected status %d from Brave: %s", resp.StatusCode, summary)
 	}
 	return e
+}
+
+func addReset(details map[string]any, rl *RateLimit) {
+	if rl == nil {
+		return
+	}
+	if s, ok := rl.ResetSeconds(); ok {
+		details["reset_seconds"] = s
+	}
+	details["rate_limit"] = rl
+}
+
+// isMissingTokenHeader recognises the VALIDATION error Brave returns when the
+// X-Subscription-Token header is absent: meta.errors[].loc is
+// ["header", "x-subscription-token"].
+func isMissingTokenHeader(meta json.RawMessage) bool {
+	var m struct {
+		Errors []struct {
+			Loc []string `json:"loc"`
+		} `json:"errors"`
+	}
+	if json.Unmarshal(meta, &m) != nil {
+		return false
+	}
+	for _, e := range m.Errors {
+		for _, l := range e.Loc {
+			if strings.EqualFold(l, "x-subscription-token") {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // transportError maps a failed exchange (no response) onto an *Error.

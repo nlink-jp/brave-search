@@ -24,6 +24,12 @@ func authUpstream(t *testing.T, web, answers int) (search, answersKey *string) {
 		} else {
 			seenSearch = r.Header.Get("X-Subscription-Token")
 		}
+		// 4220 stands for Brave's real shape: 422 with SUBSCRIPTION_TOKEN_INVALID.
+		if status == 4220 {
+			w.WriteHeader(422)
+			_, _ = w.Write([]byte(`{"error":{"code":"SUBSCRIPTION_TOKEN_INVALID","detail":"The provided subscription token is invalid."}}`))
+			return
+		}
 		w.WriteHeader(status)
 		_, _ = w.Write([]byte(`{"error":{"code":"C","detail":"d"}}`))
 	}))

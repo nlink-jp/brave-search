@@ -88,17 +88,35 @@ docs/{en,ja}/                RFP (the design record) + project ADRs
 
 ## Gotchas
 
-Nothing has been measured against the live API yet. `auth check` rests on a
-documentation claim — that Brave refuses an invalid request with 4xx *after*
-checking the key, and bills no failed response — which
-`TestLiveProbeDistinguishesKeyFromRequest` pins. The open questions, answered
-by `make e2e` and recorded here with a date:
+Measured against the live API on 2026-09-12 with a bogus key (no real key
+yet). Re-verify before trusting any of this a year from now.
+
+- **A bad key is a 422, not a 401.** Brave answers
+  `{"error":{"code":"SUBSCRIPTION_TOKEN_INVALID","status":422}}` for an
+  invalid `X-Subscription-Token`, and a *missing* header is a 422 `VALIDATION`
+  error whose `meta.errors[].loc` is `["header","x-subscription-token"]`. A
+  bad request under an accepted key is also 422 `VALIDATION`. The HTTP status
+  therefore cannot tell a wrong key from a wrong request; `statusError` reads
+  the body's `error.code` first and the status only as a fallback. Every
+  endpoint (web, context, answers) behaves the same.
+- **The key is checked before the request is validated**, so `auth check`'s
+  probe (a request with no query / no message) does distinguish a bad key
+  (`SUBSCRIPTION_TOKEN_INVALID`) from a good one (`VALIDATION`) without a
+  billable success. That failed responses are unbilled is still a
+  documentation claim; watch the dashboard after the first `make e2e`.
+- `Api-Version: 2026-09-12` on a bogus-key request was answered by the token
+  error, not by a version error — so it was at least not rejected outright.
+  Whether it changes the response shape under a valid key is unmeasured.
+
+Open questions, answered by `make e2e` with real keys and recorded here with a
+date:
 
 1. ~~Does one key span the Search and Answers plans?~~ **Answered
    2026-09-12 (operator, from the account dashboard): one key per plan.**
    `api_key` serves web/context, `answers_api_key` serves answer/research,
    and neither is sent to the other's endpoint.
-2. Does `/chat/completions` return `X-RateLimit-*` headers?
+2. Does `/chat/completions` return `X-RateLimit-*` headers? And how is a
+   valid key on an unsubscribed plan refused — 403, or 422 with another code?
 3. Do Answers / LLM Context fetch target pages live, or serve from Brave's
    index? (Decides the mcp-tactics tier.)
 4. What does a research call actually cost at the defaults?
