@@ -64,7 +64,7 @@ func TestAuthCheckDistinguishesTheFailures(t *testing.T) {
 		wantCode     int
 		wantWords    []string
 	}{
-		"rejected search key":    {401, 422, "sk", exitError, []string{"Search:  REJECTED", "Answers: valid"}},
+		"rejected search key":    {4220, 422, "sk", exitError, []string{"Search:  REJECTED", "Answers: valid"}},
 		"answers not subscribed": {422, 403, "sk", exitError, []string{"Search:  valid", "Answers: NOT_SUBSCRIBED", "one key per plan"}},
 		"search key absent":      {422, 422, "", exitError, []string{"Search:  ABSENT", "BRAVE_SEARCH_API_KEY", "Answers: valid"}},
 		"upstream down":          {503, 422, "sk", exitUpstream, []string{"Search:  UNREACHABLE", "Answers: valid"}},

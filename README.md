@@ -13,8 +13,6 @@ brave-search exposes three [Brave Search API](https://brave.com/search/api/) end
 
 It is a search primitive: it returns what Brave returns, prints what the call cost, and never stores, recomposes or redistributes a result. [gem-search](https://github.com/nlink-jp/gem-search) is the agentic report generator on Vertex AI; this is the search call that needs only a Brave API key.
 
-> **Status: under development.** Every command is implemented and measured against the live API.
-
 ## Install
 
 ```bash
@@ -59,7 +57,7 @@ The Search endpoints are billed per request at Brave's published price, so the f
 cost: $0.0157 (reported by Brave) · requests: 1 · searches: 2 · tokens: 1234 in / 300 out
 ```
 
-**An answer costs about ten times a web search.** Brave feeds the search results to its model and bills them as input tokens — a single `answer` measured at about 10,000 input tokens and $0.054–0.058. **Citations are unreliable for non-English replies** (measured on one question: English had them in every run, Japanese in one run of three). A non-English answer without citations says so in a `note`; ask again, or in English, when sources matter.
+**An answer costs about ten times a web search.** Brave feeds the search results to its model and bills them as input tokens — a single `answer` measured at about 10,000 input tokens and $0.054–0.058. **Citations are unreliable when the requested reply language is not English** (measured on one question: `--lang en` had them in every run, `--lang ja` in one run of three). An `answer` requested in another language that comes back without citations says so in a `note`; ask again, or with `--lang en`, when sources matter.
 
 `research` is deliberately capped below the API's own defaults (10 searches per iteration, 2 iterations, 120 seconds against 20 / 4 / 180): one call bills every search it runs plus tokens, and it cannot be stopped once dispatched.
 

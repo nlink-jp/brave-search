@@ -99,9 +99,12 @@ this a year from now.
 - **Citations are unreliable for non-English replies — and not
   deterministic.** One question, country constant, five runs: `en` → 29, 29;
   `ja` → 0, 0, 24. So "no citations" is a per-run outcome that clusters on
-  non-English replies, not a rule. The engine attaches a `note` to a
-  non-English answer that has no citations. An empty `citations` never means
-  "no sources exist". Other languages unchecked.
+  non-English *requests* (the predicate is the `language` parameter, `en`
+  and its regional variants counting as English), not a rule. The engine
+  attaches a `note` to a single-search `answer` requested in another
+  language that has no citations — not to `research`, which returned none
+  in English too. An empty `citations` never means "no sources exist".
+  Other languages unchecked.
 - **The Answers endpoint returns no `X-RateLimit-*` headers**; the Search
   endpoints do. Answers results therefore carry no `rate_limit`.
 - **A key of the other plan is accepted.** A billed `/web/search` with the
@@ -129,8 +132,10 @@ this a year from now.
   `{"answer": "…"}` in both live runs (2026-09-12). The parser unwraps it,
   reads `citations` / `blindspots` keys if present (documented, not yet
   observed — both runs had neither, and no `<blindspots>` tag either), and
-  keeps any other key verbatim in `answer_extra`. `tags_seen` in a `--json`
-  result records what the stream actually carried.
+  keeps any other key verbatim in `answer_extra` (an object with no string
+  `answer` leaves `answer` empty and the whole object there). `tags_seen`,
+  present in every JSON result (CLI `--json` and MCP), records what the
+  stream actually carried.
 - **Research progress keys (Brave's spelling included):** `elasped_seconds`,
   `number_of_input_tokens`, `number_of_output_tokens`, `number_of_thinking_tokens`,
   `number_of_iterations`, `number_of_queries`, `number_of_urls_analyzed`,

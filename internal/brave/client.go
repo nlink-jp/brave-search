@@ -111,9 +111,18 @@ func (r *RateLimit) ResetSeconds() (int, bool) {
 	return r.Reset[0], true
 }
 
-// Capped reports whether window i has a limit at all.
+// Capped reports whether window i has a limit. Only an explicit 0 means
+// uncapped; a window with no limit value at all is treated as capped, so a
+// missing X-RateLimit-Limit header never turns an exhausted quota into "wait
+// one second".
 func (r *RateLimit) Capped(i int) bool {
-	return r != nil && i < len(r.Limit) && r.Limit[i] > 0
+	if r == nil {
+		return false
+	}
+	if i >= len(r.Limit) {
+		return true
+	}
+	return r.Limit[i] > 0
 }
 
 func parseRateLimit(h http.Header) *RateLimit {

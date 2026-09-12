@@ -54,14 +54,16 @@ type AnswerResult struct {
 	Meta        Meta                       `json:"meta"`
 }
 
-// NoCitationsNonEnglish is the note attached when a reply in a language other
-// than English came back without citations. Measured 2026-09-12 on one
-// question: language=en carried citations in 2 of 2 runs (29, 29); language=ja
-// in 1 of 3 (0, 0, 24), country held constant. Not deterministic, but the
-// failures clustered on the non-English replies.
-const NoCitationsNonEnglish = "Brave returned no citations. Non-English replies were observed to come back " +
-	"without them intermittently (language=ja: none in 2 of 3 runs on 2026-09-12; English: every run had them). " +
-	"Ask again, or ask in English, if sources matter."
+// NoCitationsNonEnglish is the note attached to a single-search answer whose
+// requested reply language is not English and which came back without
+// citations. Measured 2026-09-12 on one question: language=en carried
+// citations in 2 of 2 runs (29, 29); language=ja in 1 of 3 (0, 0, 24),
+// country held constant. Not deterministic, but the failures clustered on
+// the non-English requests. Research mode returned none in English too, so
+// the note is not attached there.
+const NoCitationsNonEnglish = "Brave returned no citations. Answers requested in a language other than English were " +
+	"observed to come back without them intermittently (language=ja: none in 2 of 3 runs on 2026-09-12; " +
+	"language=en: every run had them). Ask again, or with language en, if sources matter."
 
 // Answer validates, fills defaults, and performs one single-search call.
 func (e *Engine) Answer(ctx context.Context, r AnswerRequest) (*AnswerResult, error) {
@@ -131,6 +133,12 @@ func (e *Engine) Research(ctx context.Context, r ResearchRequest, progress func(
 // validateAnswerCommon checks what both Answers modes share. The 400-char /
 // 50-word limit is a Web Search rule and is not applied here: a research
 // brief is allowed to be long, and the Answers documentation states no limit.
+// isEnglish accepts en and any regional variant (en-US, en-GB), case-insensitively.
+func isEnglish(language string) bool {
+	primary, _, _ := strings.Cut(language, "-")
+	return strings.EqualFold(primary, "en")
+}
+
 func validateAnswerCommon(p brave.AnswerParams) error {
 	if strings.TrimSpace(p.Question) == "" {
 		return brave.Argf("question is required")
@@ -159,7 +167,7 @@ func shapeAnswer(question, mode, language string, res *brave.AnswerResult, meta 
 	if out.Citations == nil {
 		out.Citations = []brave.Citation{}
 	}
-	if len(out.Citations) == 0 && !strings.EqualFold(language, "en") && res.Text != "" {
+	if mode == "answer" && len(out.Citations) == 0 && !isEnglish(language) && res.Text != "" {
 		out.Note = NoCitationsNonEnglish
 	}
 	if u := res.Usage; u != nil {

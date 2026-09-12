@@ -314,13 +314,16 @@ func unwrapAnswerObject(res *AnswerResult, body string) string {
 	if err := json.Unmarshal([]byte(body), &m); err != nil {
 		return body
 	}
-	text := body
+	// Without a string "answer" there is no answer text to show: the text is
+	// left empty (the CLI says so) and the whole object stays in AnswerExtra,
+	// rather than printing the wrapper as if it were prose.
+	text := ""
 	if raw, ok := m["answer"]; ok {
 		var s string
 		if json.Unmarshal(raw, &s) == nil {
 			text = s
+			delete(m, "answer")
 		}
-		delete(m, "answer")
 	}
 	if raw, ok := m["citations"]; ok {
 		var cs []Citation
@@ -444,9 +447,6 @@ func parseProgress(inner string) Progress {
 	}
 	return Progress{Raw: strings.TrimSpace(inner)}
 }
-
-// AnswersEndpoint is exported for callers that key on the endpoint.
-const AnswersEndpoint = answersEndpoint
 
 // completeTags returns the inner text of every complete <name>…</name> pair,
 // in order. An unterminated tag is left alone (it may still be arriving).

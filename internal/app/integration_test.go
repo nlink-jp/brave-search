@@ -209,9 +209,21 @@ func TestDoubleDashEndsFlagParsing(t *testing.T) {
 	if q.Get("q") != "go -tutorial --extra-snippets" || q.Get("count") != "2" {
 		t.Errorf("query = %v", q)
 	}
-	// Without "--", an undefined -word is a usage error, not a silent drop.
+	// "--" after a positional still ends flag parsing.
+	if code := run([]string{"web", "go", "--", "-tutorial"}, "t", nil, &stdout, &stderr); code != exitOK {
+		t.Fatalf("exit %d: %s", code, stderr.String())
+	}
+	if q := u.last.URL.Query().Get("q"); q != "go -tutorial" {
+		t.Errorf("q = %q", q)
+	}
+	// Without "--", an undefined -word is a usage error reported once, in the
+	// tool's voice, not a silent drop.
+	stderr.Reset()
 	if code := run([]string{"web", "go", "-tutorial"}, "t", nil, &stdout, &stderr); code != exitError {
 		t.Errorf("exit %d, want %d", code, exitError)
+	}
+	if n := strings.Count(stderr.String(), "not defined: -tutorial"); n != 1 || !strings.HasPrefix(stderr.String(), "brave-search: ") {
+		t.Errorf("parse error reported %d times / stderr=%q", n, stderr.String())
 	}
 }
 

@@ -18,7 +18,7 @@ func runAnswer(args []string, version string, stdout, stderr io.Writer) int {
 	f.register(fs)
 	fs.IntVar(&r.MaxTokens, "max-tokens", 0, "reply token cap (default: the API's)")
 
-	positional, code, ok := parseCommand(fs, args, stdout)
+	positional, code, ok := parseCommand(fs, args, stdout, stderr)
 	if !ok {
 		return code
 	}
@@ -53,7 +53,7 @@ func runResearch(args []string, version string, stdout, stderr io.Writer) int {
 	fs.IntVar(&r.MaxIterations, "max-iterations", 0, "iterations, 1-5")
 	fs.IntVar(&r.MaxSeconds, "max-seconds", 0, "time budget in seconds, 1-300")
 
-	positional, code, ok := parseCommand(fs, args, stdout)
+	positional, code, ok := parseCommand(fs, args, stdout, stderr)
 	if !ok {
 		return code
 	}

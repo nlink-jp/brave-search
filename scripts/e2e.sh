@@ -66,7 +66,7 @@ else
 fi
 
 if [ "$HAVE_KEY" = 1 ]; then
-  echo "== billed checks (3 requests)"
+  echo "== billed checks (4 requests)"
   contains "web prints a ranked result"       "1. "            -- "$BIN" web "Brave Search API" --count 2
   contains "web --json carries cost_usd"      "cost_usd"       -- "$BIN" web "Brave Search API" --count 2 --json
   contains "context returns chunks"           '"snippets":'    -- "$BIN" context "Brave Search API" --count 2 --max-tokens 1024 --json

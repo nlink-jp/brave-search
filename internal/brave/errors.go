@@ -161,9 +161,12 @@ func addReset(details map[string]any, rl *RateLimit) {
 // X-Subscription-Token header is absent: meta.errors[].loc is
 // ["header", "x-subscription-token"].
 func isMissingTokenHeader(meta json.RawMessage) bool {
+	// loc elements are strings or integer indexes (pydantic style), so they
+	// are decoded loosely — one integer must not hide the header error.
 	var m struct {
 		Errors []struct {
-			Loc []string `json:"loc"`
+			Loc  []any  `json:"loc"`
+			Type string `json:"type"`
 		} `json:"errors"`
 	}
 	if json.Unmarshal(meta, &m) != nil {
@@ -171,7 +174,7 @@ func isMissingTokenHeader(meta json.RawMessage) bool {
 	}
 	for _, e := range m.Errors {
 		for _, l := range e.Loc {
-			if strings.EqualFold(l, "x-subscription-token") {
+			if s, ok := l.(string); ok && strings.EqualFold(s, "x-subscription-token") && e.Type == "missing" {
 				return true
 			}
 		}

@@ -155,12 +155,12 @@ func (m Meta) String() string {
 		var parts []string
 		for i, rem := range rl.Remaining {
 			switch {
-			case rl.Capped(i):
-				parts = append(parts, fmt.Sprintf("%d/%d", rem, rl.Limit[i]))
-			case i < len(rl.Limit):
-				parts = append(parts, "uncapped") // a 0 limit is "no quota", not "none left"
-			default:
+			case i >= len(rl.Limit):
 				parts = append(parts, fmt.Sprintf("%d", rem))
+			case rl.Limit[i] > 0:
+				parts = append(parts, fmt.Sprintf("%d/%d", rem, rl.Limit[i]))
+			default:
+				parts = append(parts, "uncapped") // a 0 limit is "no quota", not "none left"
 			}
 		}
 		b.WriteString(" · rate budget left: " + strings.Join(parts, ", "))

@@ -4,13 +4,13 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.1.0] - 2026-09-12
 
 ### Added
 
 - Research's `<answer>` body is a JSON object and is unwrapped; unknown keys
   of it are kept in `answer_extra`, and `tags_seen` records what the stream
-  carried (JSON output only).
+  carried (in JSON results: CLI `--json` and MCP).
 - Live measurements (2026-09-12) folded in: Brave's error code is read before
   the HTTP status (a bad key is a 422 `SUBSCRIPTION_TOKEN_INVALID`); a
   0-limit rate window is uncapped, not exhausted; a stream without `[DONE]`

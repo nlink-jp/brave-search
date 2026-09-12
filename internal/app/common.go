@@ -103,7 +103,10 @@ func consumedTerminator(fs *flag.FlagSet, rest, args []string) bool {
 // shared conventions: `-h`/`--help` prints the usage on stdout and succeeds,
 // any other parse error is a usage error. ok is false when the caller should
 // return code.
-func parseCommand(fs *flag.FlagSet, args []string, stdout io.Writer) (positional []string, code int, ok bool) {
+func parseCommand(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) (positional []string, code int, ok bool) {
+	// The flag package prints its own error before calling Usage; silence
+	// both so the error is reported once, in the tool's voice.
+	fs.SetOutput(io.Discard)
 	fs.Usage = func() {}
 	positional, err := parseInterleaved(fs, args)
 	if errors.Is(err, flag.ErrHelp) {
@@ -111,7 +114,7 @@ func parseCommand(fs *flag.FlagSet, args []string, stdout io.Writer) (positional
 		return nil, exitOK, false
 	}
 	if err != nil {
-		return nil, fail(fs.Output(), exitError, "%v", err), false
+		return nil, fail(stderr, exitError, "%v", err), false
 	}
 	return positional, 0, true
 }

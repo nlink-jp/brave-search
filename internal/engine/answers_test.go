@@ -171,12 +171,19 @@ func TestNoCitationsInANonEnglishReplyIsNoted(t *testing.T) {
 	if res.Note != NoCitationsNonEnglish {
 		t.Errorf("note = %q", res.Note)
 	}
-	res, err = e.Answer(context.Background(), AnswerRequest{Question: "q", Language: "en"})
-	if err != nil {
-		t.Fatal(err)
+	for _, lang := range []string{"en", "en-US", "EN-gb"} {
+		res, err = e.Answer(context.Background(), AnswerRequest{Question: "q", Language: lang})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if res.Note != "" {
+			t.Errorf("%s: an English reply without citations must not blame the language: %q", lang, res.Note)
+		}
 	}
-	if res.Note != "" {
-		t.Errorf("an English reply without citations must not blame the language: %q", res.Note)
+	// Research returned no citations in English too, so it never blames the language.
+	rs, err := e.Research(context.Background(), ResearchRequest{Question: "q", Language: "ja"}, nil)
+	if err == nil && rs.Note != "" {
+		t.Errorf("research attached the language note: %q", rs.Note)
 	}
 }
 

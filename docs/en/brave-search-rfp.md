@@ -60,8 +60,8 @@ A combination absent here does not exist. Precedence is
 | research queries | `--max-queries` | `max_queries` | `[answers] research_max_queries` | `research_maximum_number_of_queries` | research | 1–50. Default **10** (tighter than the API's 20) |
 | research iterations | `--max-iterations` | `max_iterations` | `[answers] research_max_iterations` | `research_maximum_number_of_iterations` | research | 1–5. Default **2** (API 4) |
 | research seconds | `--max-seconds` | `max_seconds` | `[answers] research_max_seconds` | `research_maximum_number_of_seconds` | research | 1–300. Default **120** (API 180) |
-| Deadline | `--timeout` | **none** | `[api] timeout` | — | all | Default 30s. research derives `max_seconds + 30s` |
-| API version | — | — | `[api] api_version` | `Api-Version` header | all | pinned to the implementation date; default is that date |
+| Deadline | `--timeout` | **none** | `[api] timeout` | — | all | Default 30s. research derives `max_seconds + 30s` (an explicit `--timeout` wins) |
+| API version | — | — | `[api] api_version` | `Api-Version` header | all | Default empty (latest); an arbitrary date is a 404 — corrections §2 |
 | Config / output | `--config`, `--json` | — | — | — | all | |
 
 research's per-query token cap (`research_maximum_number_of_tokens_per_query`)

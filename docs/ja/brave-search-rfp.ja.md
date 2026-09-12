@@ -57,8 +57,8 @@ CLI フラグ・MCP 引数・config キーは**この 1 表から導出**する�
 | research クエリ数 | `--max-queries` | `max_queries` | `[answers] research_max_queries` | `research_maximum_number_of_queries` | research | 1–50。既定 **10**（API 既定 20 より絞る） |
 | research 反復 | `--max-iterations` | `max_iterations` | `[answers] research_max_iterations` | `research_maximum_number_of_iterations` | research | 1–5。既定 **2**（API 既定 4） |
 | research 秒 | `--max-seconds` | `max_seconds` | `[answers] research_max_seconds` | `research_maximum_number_of_seconds` | research | 1–300。既定 **120**（API 既定 180） |
-| 期限 | `--timeout` | **無し** | `[api] timeout` | — | 全部 | 既定 30s。research は `max_seconds + 30s` を自動導出 |
-| API 版 | — | — | `[api] api_version` | `Api-Version` ヘッダ | 全部 | 実装時点の日付を固定。既定は実装日 |
+| 期限 | `--timeout` | **無し** | `[api] timeout` | — | 全部 | 既定 30s。research は `max_seconds + 30s` を自動導出（明示の `--timeout` が優先） |
+| API 版 | — | — | `[api] api_version` | `Api-Version` ヘッダ | 全部 | 既定は空（最新）。任意の日付は 404 — 「実装後の訂正」2 |
 | 設定 / 出力 | `--config`, `--json` | — | — | — | 全部 | |
 
 research の per-query トークン上限（`research_maximum_number_of_tokens_per_query`）

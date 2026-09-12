@@ -14,7 +14,7 @@ func runMCP(args []string, version string, stdin io.Reader, stdout, stderr io.Wr
 	fs := newFlagSet("mcp", stderr)
 	fs.StringVar(&configPath, "config", "", "config file path")
 	fs.StringVar(&configPath, "c", "", "config file path (shorthand)")
-	if _, code, ok := parseCommand(fs, args, stdout); !ok {
+	if _, code, ok := parseCommand(fs, args, stdout, stderr); !ok {
 		return code
 	}
 

@@ -52,7 +52,7 @@ func runAuth(args []string, version string, stdout, stderr io.Writer) int {
 	var f commonFlags
 	fs := newFlagSet("auth", stderr)
 	f.register(fs)
-	positional, code, ok := parseCommand(fs, args, stdout)
+	positional, code, ok := parseCommand(fs, args, stdout, stderr)
 	if !ok {
 		return code
 	}

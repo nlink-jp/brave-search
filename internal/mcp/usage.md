@@ -120,16 +120,16 @@ Result: `question`, `mode: "answer"`, `answer` (the text), `citations[]` of
 `{number, url, snippet, favicon, start_index, end_index}` (the indexes are
 Brave's positions in its own answer text; a citation observed live had
 `start_index == end_index`, i.e. an insertion point after the cited sentence),
-`note` (present only when something needs saying — see below), and `meta`
-with `searches`, `tokens_in`, `tokens_out` and `cost_usd` as Brave reported
-them.
+`note` (present only when something needs saying — see below), `tags_seen`
+(a count of the stream's tags by name, as provenance), and `meta` with
+`searches`, `tokens_in`, `tokens_out` and `cost_usd` as Brave reported them.
 
-**Citations are unreliable for non-English replies.** Measured 2026-09-12 on
-one question, country held constant: `language: "en"` carried citations in
-every run (29, 29); `language: "ja"` in one run of three (0, 0, 24). A
-non-English reply that comes back without citations carries a `note` saying
-so. If sources matter, ask again or ask in English, and never treat an empty
-`citations` as "no sources exist".
+**Citations are unreliable when the requested `language` is not English.**
+Measured 2026-09-12 on one question, country held constant: `language: "en"`
+carried citations in every run (29, 29); `language: "ja"` in one run of three
+(0, 0, 24). An `answer` requested in another language that comes back without
+citations carries a `note` saying so. If sources matter, ask again or with
+`language: "en"`, and never treat an empty `citations` as "no sources exist".
 
 ### `research`
 
@@ -157,8 +157,11 @@ live run so far), `progress[]` (one report per iteration: `{fields}` with
 Brave's own keys — `number_of_queries`, `number_of_urls_analyzed`,
 `number_of_snippets_analyzed`, `number_of_input_tokens`,
 `number_of_output_tokens`, `elasped_seconds` (Brave's spelling) — or `{raw}`
-when a report was not JSON), and `answer_extra` for any key of Brave's answer
-object this server does not yet understand. Measured 2026-09-12: a research
+when a report was not JSON), `tags_seen`, and `answer_extra` for any key of
+Brave's answer object this server does not yet understand (if that object
+carries no string `answer`, `answer` is empty and the whole object is in
+`answer_extra`). Research carries no language `note`: it returned no
+citations in English either. Measured 2026-09-12: a research
 call capped at 2 queries / 1 iteration ran 1 query, took ~10 s and cost
 $0.063–0.064; neither run returned citations.
 

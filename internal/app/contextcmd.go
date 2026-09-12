@@ -20,7 +20,7 @@ func runContext(args []string, version string, stdout, stderr io.Writer) int {
 	fs.IntVar(&r.MaxTokens, "max-tokens", 0, "context budget, 1024-32768")
 	fs.IntVar(&r.MaxURLs, "max-urls", 0, "URLs to draw from, 1-50")
 
-	positional, code, ok := parseCommand(fs, args, stdout)
+	positional, code, ok := parseCommand(fs, args, stdout, stderr)
 	if !ok {
 		return code
 	}

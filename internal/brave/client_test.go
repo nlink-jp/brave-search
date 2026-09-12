@@ -323,4 +323,12 @@ func TestRateLimitParsing(t *testing.T) {
 	if rl.Capped(1) || !rl.Capped(0) {
 		t.Error("Capped misreads the 0 limit")
 	}
+	// No Limit header at all: the exhausted window still decides the wait.
+	h = http.Header{}
+	h.Set("X-RateLimit-Remaining", "5, 0")
+	h.Set("X-RateLimit-Reset", "1, 86400")
+	rl = parseRateLimit(h)
+	if s, ok := rl.ResetSeconds(); !ok || s != 86400 {
+		t.Errorf("without a Limit header the exhausted window must win: %d,%v", s, ok)
+	}
 }
