@@ -1,0 +1,76 @@
+# brave-search configuration — copy to ~/.config/brave-search/config.toml
+# (also read: $XDG_CONFIG_HOME/brave-search/config.toml and, on macOS,
+# ~/Library/Application Support/brave-search/config.toml; the first that
+# exists wins).
+#
+# Every setting is optional except the API key; the values shown are the
+# built-in defaults. Precedence: flag > environment variable > this file >
+# built-in default. Unknown sections or keys are rejected, so a typo cannot
+# silently fall back to a default.
+#
+# This file holds a credential. Keep it out of version control (the
+# repository .gitignore already excludes config.toml) and readable only by
+# you: chmod 600.
+#
+# There is no [cache] section. The Brave ToS permits only transient
+# retention of search results, so nothing is written to disk and an
+# identical call is a second billed request.
+
+[api]
+# Brave Search API key, from https://api-dashboard.search.brave.com/.
+# The BRAVE_SEARCH_API_KEY environment variable overrides this value — the
+# same name Brave's own skills use, so an environment set up for them works
+# here unchanged. The key is never accepted as a command-line flag.
+#api_key = "YOUR-BRAVE-API-KEY-HERE"
+
+# API root. Override only to point at a test server.
+# Environment: BRAVE_SEARCH_BASE_URL
+# base_url = "https://api.search.brave.com/res/v1"
+
+# Api-Version header (YYYY-MM-DD). Empty sends none, which means "latest".
+# Set a date to pin the response shape across Brave's incompatible changes.
+# Environment: BRAVE_SEARCH_API_VERSION
+# api_version = ""
+
+# Deadline per HTTPS exchange. research derives its own: max_seconds + 30s.
+# Environment: BRAVE_SEARCH_TIMEOUT_SECONDS (a number of seconds)
+# timeout = "30s"
+
+[search]                    # defaults for web and context
+# Two-letter country code, or ALL. Brave's default is US; set "JP" for
+# Japanese results. Environment: BRAVE_SEARCH_COUNTRY (applies to answers too)
+# country = "US"
+
+# Search language. Environment: BRAVE_SEARCH_SEARCH_LANG
+# search_lang = "en"
+
+# off | moderate | strict. Environment: BRAVE_SEARCH_SAFESEARCH (applies to
+# answers too)
+# safesearch = "moderate"
+
+# Results per call, 1-20 for web (context accepts up to 50 via --count).
+# Environment: BRAVE_SEARCH_COUNT
+# count = 10
+
+[context]                   # LLM Context only
+# Context budget in tokens, 1024-32768.
+# max_tokens = 8192
+
+# URLs the context is drawn from, 1-50.
+# max_urls = 20
+
+[answers]                   # defaults for answer and research
+# country = "US"
+# Reply language. Environment: BRAVE_SEARCH_LANGUAGE
+# language = "en"
+# safesearch = "moderate"
+
+# Reply token cap for answer. 0 leaves it to the API.
+# max_tokens = 0
+
+# research caps. These are deliberately tighter than the API's own defaults
+# (20 / 4 / 180): one research call bills every search it runs plus tokens,
+# and a dollar-scale call is easy to reach at the API defaults.
+# research_max_queries = 10       # searches per iteration, 1-50
+# research_max_iterations = 2     # 1-5
+# research_max_seconds = 120      # 1-300
