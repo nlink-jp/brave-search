@@ -24,6 +24,11 @@ type Client struct {
 	APIVersion string // Api-Version header; "" sends none
 	UserAgent  string
 	HTTP       Doer
+
+	// AnswersAPIKey, when set, is sent to /chat/completions instead of
+	// APIKey. Whether Brave issues one key per plan or one key for all is
+	// unverified; this keeps both cases working.
+	AnswersAPIKey string
 }
 
 // New builds a client with a plain net/http transport. timeout bounds each
@@ -46,8 +51,16 @@ func (c *Client) WithTimeout(d time.Duration) *Client {
 	return &clone
 }
 
-// HasKey reports whether the client is authenticated.
+// HasKey reports whether the client is authenticated for the Search endpoints.
 func (c *Client) HasKey() bool { return c.APIKey != "" }
+
+// keyFor returns the key to send to an endpoint.
+func (c *Client) keyFor(endpoint string) string {
+	if endpoint == answersEndpoint && c.AnswersAPIKey != "" {
+		return c.AnswersAPIKey
+	}
+	return c.APIKey
+}
 
 // maxBody caps how much of a response is read. A context response at the
 // largest token budget is a few hundred KB; anything past this is a
@@ -117,7 +130,8 @@ func intList(s string) []int {
 // refuses to build one without a key: nothing is sent that Brave would only
 // reject.
 func (c *Client) newRequest(ctx context.Context, method, endpoint string, query url.Values, body io.Reader) (*http.Request, error) {
-	if !c.HasKey() {
+	key := c.keyFor(endpoint)
+	if key == "" {
 		return nil, &Error{Code: CodeMissingAPIKey,
 			Message: "no Brave API key is configured; set [api] api_key in the config file or BRAVE_SEARCH_API_KEY",
 			Details: map[string]any{"endpoint": endpoint}}
@@ -131,7 +145,7 @@ func (c *Client) newRequest(ctx context.Context, method, endpoint string, query 
 		return nil, &Error{Code: CodeNetwork, Message: fmt.Sprintf("build request: %v", err)}
 	}
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set("X-Subscription-Token", c.APIKey)
+	req.Header.Set("X-Subscription-Token", key)
 	if c.APIVersion != "" {
 		req.Header.Set("Api-Version", c.APIVersion)
 	}

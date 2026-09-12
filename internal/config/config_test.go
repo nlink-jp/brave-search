@@ -116,15 +116,16 @@ func TestEnvKeyOverridesFileKey(t *testing.T) {
 	dir := isolate(t)
 	write(t, filepath.Join(dir, ".config", "brave-search", "config.toml"), "[api]\napi_key = \"file\"\n")
 	t.Setenv(EnvAPIKey, "env")
+	t.Setenv(EnvAnswersAPIKey, "env-answers")
 	cfg, err := Load("", 0)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.APIKey != "env" {
-		t.Errorf("APIKey = %q, want env", cfg.APIKey)
+	if cfg.APIKey != "env" || cfg.AnswersAPIKey != "env-answers" {
+		t.Errorf("keys = %q / %q", cfg.APIKey, cfg.AnswersAPIKey)
 	}
-	if cfg.Redacted().APIKey != "[set]" {
-		t.Error("Redacted leaked the key")
+	if r := cfg.Redacted(); r.APIKey != "[set]" || r.AnswersAPIKey != "[set]" {
+		t.Error("Redacted leaked a key")
 	}
 }
 

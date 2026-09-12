@@ -92,6 +92,47 @@ Brave's guidance: 5 results / 2048 tokens for a simple factual question, the
 defaults for standard research, 50 / 16384 for a complex multi-source
 question.
 
+### `answer`
+
+A grounded answer to one question, from one search, with citations. Billed
+per search plus tokens; `meta` carries Brave's exact cost report.
+
+| Argument | Type | Meaning |
+|---|---|---|
+| `question` | string, required | The question. Exactly one message is sent; there is no conversation. |
+| `country`, `language`, `safesearch` | string | As above (`language` is the reply language). |
+| `max_tokens` | integer | Reply token cap. Omit to let the API decide. |
+
+Result: `question`, `mode: "answer"`, `answer` (the text), `citations[]` of
+`{number, url, snippet, start_index, end_index}` (indexes into `answer`), and
+`meta` with `searches`, `tokens_in`, `tokens_out` and `cost_usd` as Brave
+reported them (`cost_basis: reported_by_brave`; `not_reported_by_brave` if the
+stream carried no usage report, in which case the cost is unknown, not zero).
+
+### `research`
+
+Research mode: Brave runs several searches over several iterations, reads the
+pages, and synthesises an answer with citations and declared blind spots.
+
+**This is the expensive tool.** It is billed for every search it runs — up to
+`max_queries × max_iterations` — plus tokens, and it cannot be stopped once
+dispatched: a call the client abandons is still completed and billed. The
+defaults here are tighter than the API's (10 queries / 2 iterations / 120 s
+against 20 / 4 / 180). Prefer `answer` or `llm_context` unless one search has
+proved insufficient.
+
+| Argument | Type | Meaning |
+|---|---|---|
+| `question` | string, required | The question. |
+| `country`, `language`, `safesearch` | string | As above. |
+| `max_queries` | integer | Searches per iteration, 1-50 (default 10). |
+| `max_iterations` | integer | Iterations, 1-5 (default 2). |
+| `max_seconds` | integer | Time budget, 1-300 (default 120). The HTTP deadline is this plus 30 s. |
+
+Result: as `answer`, with `mode: "research"`, plus `blindspots` (what Brave
+says it could not cover — read it before trusting the answer) and
+`progress[]` (Brave's iteration reports, for provenance).
+
 ### `get_usage`
 
 Returns this manual.
@@ -109,6 +150,6 @@ Tool errors come back as `isError: true` with a JSON body
 | `plan_not_subscribed` | The key is valid but the endpoint's plan is not active (403). | Tell the operator which plan (Search or Answers) the tool needs. Do not retry. |
 | `rate_limited` | Too many requests (429). `details.reset_seconds` says how long to wait. | Wait that long, then retry once. Do not loop. |
 | `upstream_error` | Brave answered 5xx or something unexpected. | Retry once after a few seconds; then report it. |
-| `timeout` | The request exceeded its deadline. | For `research`, lower `max_seconds`; otherwise retry once. |
+| `timeout` | The request exceeded its deadline. | For `research`, lower `max_seconds` (the deadline is `max_seconds + 30 s`); otherwise retry once. |
 | `network_error` | The request never completed. | Report it; the operator checks connectivity. |
 | `decode_error` | Brave's response was not the JSON expected. | Report it with the message; the API may have changed. |

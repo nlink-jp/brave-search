@@ -27,8 +27,9 @@ const SearchRequestUSD = 0.005
 
 // Cost bases, so a reader knows whether a figure is Brave's or ours.
 const (
-	CostEstimate = "list_price_estimate"
-	CostReported = "reported_by_brave"
+	CostEstimate   = "list_price_estimate"
+	CostReported   = "reported_by_brave"
+	CostUnreported = "not_reported_by_brave" // the stream carried no usage tag
 )
 
 // Meta is what every result reports beside its payload: what the call cost
@@ -36,6 +37,9 @@ const (
 // so this is never omitted.
 type Meta struct {
 	Requests  int              `json:"requests"`
+	Searches  int              `json:"searches,omitempty"`   // Answers: searches Brave ran
+	TokensIn  int              `json:"tokens_in,omitempty"`  // Answers
+	TokensOut int              `json:"tokens_out,omitempty"` // Answers
 	CostUSD   float64          `json:"cost_usd"`
 	CostBasis string           `json:"cost_basis"`
 	RateLimit *brave.RateLimit `json:"rate_limit,omitempty"`
@@ -134,10 +138,19 @@ func upstreamCountry(v string) string {
 func (m Meta) String() string {
 	var b strings.Builder
 	basis := "list-price estimate"
-	if m.CostBasis == CostReported {
+	switch m.CostBasis {
+	case CostReported:
 		basis = "reported by Brave"
+	case CostUnreported:
+		basis = "NOT reported by Brave"
 	}
 	fmt.Fprintf(&b, "cost: $%.4f (%s) · requests: %d", m.CostUSD, basis, m.Requests)
+	if m.Searches > 0 {
+		fmt.Fprintf(&b, " · searches: %d", m.Searches)
+	}
+	if m.TokensIn > 0 || m.TokensOut > 0 {
+		fmt.Fprintf(&b, " · tokens: %d in / %d out", m.TokensIn, m.TokensOut)
+	}
 	if rl := m.RateLimit; rl != nil && len(rl.Remaining) > 0 {
 		b.WriteString(" · rate budget left:")
 		for i, rem := range rl.Remaining {

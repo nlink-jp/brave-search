@@ -13,7 +13,7 @@ brave-search は [Brave Search API](https://brave.com/search/api/) の 3 エン�
 
 これは検索プリミティブです。Brave が返したものをそのまま返し、そのコールのコストを表示し、結果を保存・再構成・再配布しません。[gem-search](https://github.com/nlink-jp/gem-search) が Vertex AI 上のエージェンティックなレポート生成器であるのに対し、こちらは Brave の API キーだけで動く検索呼び出しです。
 
-> **Status: 開発中。** `web` と `context` は動作します。`answer`・`research`・`auth check` は未実装です。
+> **Status: 開発中。** `web`・`context`・`answer`・`research` は動作します。`auth check` は未実装です。実 API に対する検証はまだ行っていません。
 
 ## インストール
 
@@ -35,7 +35,14 @@ brave-search context "how do go generics work" --max-tokens 2048 --max-urls 5
 # 国・言語・セーフサーチはすべてのコマンドに効く
 brave-search web 生成AI --country jp --lang ja
 
-# MCP サーバとして（stdio） — ツール: web_search, llm_context, get_usage
+# 1 回の検索に基づく出典付き回答
+brave-search answer "what changed in go 1.25"
+
+# research モード: 複数回・複数反復の検索と、Brave が申告する「調べ切れなかった論点」。
+# 高価なコマンド — 進捗は stderr に出る
+brave-search research "compare alpha and beta for use case X" --max-queries 5 --max-iterations 1
+
+# MCP サーバとして（stdio） — ツール: web_search, llm_context, answer, research, get_usage
 brave-search mcp
 ```
 
@@ -45,7 +52,13 @@ brave-search mcp
 cost: $0.0050 (list-price estimate) · requests: 1 · rate budget left: 0/1, 1999/2000
 ```
 
-Search 系エンドポイントは Brave の公表単価でリクエストごとに課金されるため、この数字は見積もりです。Answers 系は正確なコストを報告します。
+Search 系エンドポイントは Brave の公表単価でリクエストごとに課金されるため、この数字は見積もりです。Answers 系は正確なコストを報告します:
+
+```
+cost: $0.0157 (reported by Brave) · requests: 1 · searches: 2 · tokens: 1234 in / 300 out
+```
+
+`research` の既定は API 自身の既定より意図的に絞ってあります（反復あたり 10 検索・2 反復・120 秒。API 既定は 20 / 4 / 180）。1 回の呼び出しで走った検索すべてとトークンが課金され、いったん投げた呼び出しは止められないためです。
 
 ### 設定
 
@@ -64,7 +77,7 @@ claude mcp add brave-search -- /path/to/brave-search mcp
 ## セットアップ
 
 1. <https://api-dashboard.search.brave.com/> で契約し — **Search** プランが `web` と `context`、**Answers** プランが `answer` と `research` を担います — API キーを作成します。
-2. キーを `~/.config/brave-search/config.toml`（[config.example.toml](config.example.toml) 参照）か `BRAVE_SEARCH_API_KEY` に置きます。キーはフラグでは受け付けません。
+2. キーを `~/.config/brave-search/config.toml`（[config.example.toml](config.example.toml) 参照）か `BRAVE_SEARCH_API_KEY` に置きます。Answers プランに別のキーが発行されている場合は `answers_api_key`（または `BRAVE_SEARCH_ANSWERS_API_KEY`）も設定します。キーはフラグでは受け付けません。
 3. `brave-search auth check` で、そのキーがどのプランを使えるか確認できます。
 
 ## 利用規約がこのツールに課すこと

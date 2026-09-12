@@ -13,7 +13,7 @@ brave-search exposes three [Brave Search API](https://brave.com/search/api/) end
 
 It is a search primitive: it returns what Brave returns, prints what the call cost, and never stores, recomposes or redistributes a result. [gem-search](https://github.com/nlink-jp/gem-search) is the agentic report generator on Vertex AI; this is the search call that needs only a Brave API key.
 
-> **Status: under development.** `web` and `context` work; `answer`, `research` and `auth check` are not implemented yet.
+> **Status: under development.** `web`, `context`, `answer` and `research` work; `auth check` is not implemented yet. Nothing has been verified against the live API yet.
 
 ## Install
 
@@ -35,7 +35,14 @@ brave-search context "how do go generics work" --max-tokens 2048 --max-urls 5
 # Country / language / safesearch apply to every command
 brave-search web 生成AI --country jp --lang ja
 
-# As an MCP server (stdio) — tools: web_search, llm_context, get_usage
+# A grounded answer with citations, from one search
+brave-search answer "what changed in go 1.25"
+
+# Research mode: several searches over several iterations, with the blind
+# spots Brave declares. The expensive one — progress is printed to stderr
+brave-search research "compare alpha and beta for use case X" --max-queries 5 --max-iterations 1
+
+# As an MCP server (stdio) — tools: web_search, llm_context, answer, research, get_usage
 brave-search mcp
 ```
 
@@ -45,7 +52,13 @@ Every result ends with what the call cost and the rate budget left:
 cost: $0.0050 (list-price estimate) · requests: 1 · rate budget left: 0/1, 1999/2000
 ```
 
-The Search endpoints are billed per request at Brave's published price, so the figure is an estimate; the Answers endpoints report their exact cost.
+The Search endpoints are billed per request at Brave's published price, so the figure is an estimate; the Answers endpoints report their exact cost:
+
+```
+cost: $0.0157 (reported by Brave) · requests: 1 · searches: 2 · tokens: 1234 in / 300 out
+```
+
+`research` is deliberately capped below the API's own defaults (10 searches per iteration, 2 iterations, 120 seconds against 20 / 4 / 180): one call bills every search it runs plus tokens, and it cannot be stopped once dispatched.
 
 ### Configuration
 
@@ -64,7 +77,7 @@ Call `get_usage` first — it is the full reference for the tools, their result 
 ## Setup
 
 1. Subscribe at <https://api-dashboard.search.brave.com/> — the **Search** plan covers `web` and `context`, the **Answers** plan covers `answer` and `research` — and create an API key.
-2. Put the key in `~/.config/brave-search/config.toml` (see [config.example.toml](config.example.toml)) or in `BRAVE_SEARCH_API_KEY`. The key is never accepted as a flag.
+2. Put the key in `~/.config/brave-search/config.toml` (see [config.example.toml](config.example.toml)) or in `BRAVE_SEARCH_API_KEY`. If Brave issued a separate key for the Answers plan, set `answers_api_key` (or `BRAVE_SEARCH_ANSWERS_API_KEY`) as well. The key is never accepted as a flag.
 3. `brave-search auth check` tells you which plans the key unlocks.
 
 ## What the Terms of Service mean for this tool

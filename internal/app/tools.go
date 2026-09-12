@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/nlink-jp/brave-search/internal/brave"
 	"github.com/nlink-jp/brave-search/internal/config"
 	"github.com/nlink-jp/brave-search/internal/engine"
 	"github.com/nlink-jp/brave-search/internal/mcp"
@@ -15,13 +14,14 @@ import (
 const (
 	ToolWebSearch  = "web_search"
 	ToolLLMContext = "llm_context"
+	ToolAnswer     = "answer"
+	ToolResearch   = "research"
 )
 
 // tools builds the tool set the MCP server exposes over one engine.
 func tools(cfg *config.Config, version string) []mcp.Tool {
-	client := brave.New(cfg.BaseURL, cfg.APIKey, cfg.APIVersion, cfg.Timeout, "brave-search/"+version)
-	eng := engine.New(cfg, client)
-	return []mcp.Tool{webSearchTool(eng), llmContextTool(eng)}
+	eng := engine.New(cfg, newClient(cfg, version))
+	return []mcp.Tool{webSearchTool(eng), llmContextTool(eng), answerTool(eng), researchTool(eng)}
 }
 
 // Shared argument descriptions, so the two search tools describe the same

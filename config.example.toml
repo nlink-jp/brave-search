@@ -23,6 +23,11 @@
 # here unchanged. The key is never accepted as a command-line flag.
 #api_key = "YOUR-BRAVE-API-KEY-HERE"
 
+# Key for the Answers plan (answer / research), if Brave issued a separate
+# one. Leave unset to send api_key to every endpoint.
+# Environment: BRAVE_SEARCH_ANSWERS_API_KEY
+#answers_api_key = ""
+
 # API root. Override only to point at a test server.
 # Environment: BRAVE_SEARCH_BASE_URL
 # base_url = "https://api.search.brave.com/res/v1"

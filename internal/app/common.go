@@ -42,8 +42,14 @@ func (c *commonFlags) build(version string) (*config.Config, *engine.Engine, err
 	if err != nil {
 		return nil, nil, err
 	}
-	client := brave.New(cfg.BaseURL, cfg.APIKey, cfg.APIVersion, cfg.Timeout, "brave-search/"+version)
-	return cfg, engine.New(cfg, client), nil
+	return cfg, engine.New(cfg, newClient(cfg, version)), nil
+}
+
+// newClient wires the upstream client from a configuration.
+func newClient(cfg *config.Config, version string) *brave.Client {
+	c := brave.New(cfg.BaseURL, cfg.APIKey, cfg.APIVersion, cfg.Timeout, "brave-search/"+version)
+	c.AnswersAPIKey = cfg.AnswersAPIKey
+	return c
 }
 
 // newFlagSet builds a flag set whose usage is the global usage text on stderr.

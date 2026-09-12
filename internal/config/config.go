@@ -72,13 +72,14 @@ type Answers struct {
 
 // Config holds resolved runtime settings.
 type Config struct {
-	APIKey     string
-	BaseURL    string
-	APIVersion string // Api-Version header; "" sends none (latest)
-	Timeout    time.Duration
-	Search     Search
-	Context    Context
-	Answers    Answers
+	APIKey        string
+	AnswersAPIKey string // sent to /chat/completions when set; else APIKey
+	BaseURL       string
+	APIVersion    string // Api-Version header; "" sends none (latest)
+	Timeout       time.Duration
+	Search        Search
+	Context       Context
+	Answers       Answers
 
 	// Path is the config file that was actually read, or "" when none was.
 	// Reported by `auth check` so a file that exists but is not being read is
@@ -162,6 +163,9 @@ func (c *Config) Redacted() Config {
 	if clone.APIKey != "" {
 		clone.APIKey = "[set]"
 	}
+	if clone.AnswersAPIKey != "" {
+		clone.AnswersAPIKey = "[set]"
+	}
 	return clone
 }
 
@@ -223,7 +227,7 @@ func checkSafesearch(name, v string) error {
 // knownKeys is the whole vocabulary of the file. A key outside it is a typo,
 // and a typo that is silently ignored is the worst kind of configuration bug.
 var knownKeys = map[string]map[string]bool{
-	"api":     {"api_key": true, "base_url": true, "api_version": true, "timeout": true},
+	"api":     {"api_key": true, "answers_api_key": true, "base_url": true, "api_version": true, "timeout": true},
 	"search":  {"country": true, "search_lang": true, "safesearch": true, "count": true},
 	"context": {"max_tokens": true, "max_urls": true},
 	"answers": {
@@ -253,6 +257,7 @@ func applySections(cfg *Config, sections map[string]map[string]string) error {
 	var err error
 	if a := sections["api"]; a != nil {
 		setString(&cfg.APIKey, a["api_key"])
+		setString(&cfg.AnswersAPIKey, a["answers_api_key"])
 		setString(&cfg.BaseURL, a["base_url"])
 		setString(&cfg.APIVersion, a["api_version"])
 		if v := a["timeout"]; v != "" {
@@ -302,25 +307,27 @@ func applySections(cfg *Config, sections map[string]map[string]string) error {
 // Environment variables. BRAVE_SEARCH_API_KEY is the name Brave's own skills
 // use, so an environment already set up for them works here unchanged.
 const (
-	EnvAPIKey     = "BRAVE_SEARCH_API_KEY"
-	EnvBaseURL    = "BRAVE_SEARCH_BASE_URL"
-	EnvAPIVersion = "BRAVE_SEARCH_API_VERSION"
-	EnvTimeout    = "BRAVE_SEARCH_TIMEOUT_SECONDS"
-	EnvCountry    = "BRAVE_SEARCH_COUNTRY" // applies to search and answers alike
-	EnvSearchLang = "BRAVE_SEARCH_SEARCH_LANG"
-	EnvLanguage   = "BRAVE_SEARCH_LANGUAGE"
-	EnvSafesearch = "BRAVE_SEARCH_SAFESEARCH" // applies to search and answers alike
-	EnvCount      = "BRAVE_SEARCH_COUNT"
+	EnvAPIKey        = "BRAVE_SEARCH_API_KEY"
+	EnvAnswersAPIKey = "BRAVE_SEARCH_ANSWERS_API_KEY"
+	EnvBaseURL       = "BRAVE_SEARCH_BASE_URL"
+	EnvAPIVersion    = "BRAVE_SEARCH_API_VERSION"
+	EnvTimeout       = "BRAVE_SEARCH_TIMEOUT_SECONDS"
+	EnvCountry       = "BRAVE_SEARCH_COUNTRY" // applies to search and answers alike
+	EnvSearchLang    = "BRAVE_SEARCH_SEARCH_LANG"
+	EnvLanguage      = "BRAVE_SEARCH_LANGUAGE"
+	EnvSafesearch    = "BRAVE_SEARCH_SAFESEARCH" // applies to search and answers alike
+	EnvCount         = "BRAVE_SEARCH_COUNT"
 )
 
 // EnvVars lists every variable Load reads, so tests can clear them and the
 // manual can enumerate them.
 func EnvVars() []string {
-	return []string{EnvAPIKey, EnvBaseURL, EnvAPIVersion, EnvTimeout, EnvCountry, EnvSearchLang, EnvLanguage, EnvSafesearch, EnvCount}
+	return []string{EnvAPIKey, EnvAnswersAPIKey, EnvBaseURL, EnvAPIVersion, EnvTimeout, EnvCountry, EnvSearchLang, EnvLanguage, EnvSafesearch, EnvCount}
 }
 
 func applyEnv(cfg *Config) error {
 	setString(&cfg.APIKey, os.Getenv(EnvAPIKey))
+	setString(&cfg.AnswersAPIKey, os.Getenv(EnvAnswersAPIKey))
 	setString(&cfg.BaseURL, os.Getenv(EnvBaseURL))
 	setString(&cfg.APIVersion, os.Getenv(EnvAPIVersion))
 	if v := os.Getenv(EnvTimeout); v != "" {
