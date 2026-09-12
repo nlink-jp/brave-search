@@ -2,13 +2,9 @@ package app
 
 import "io"
 
-// The four search commands land in the Search and Answers units of Phase 1.
-// Until then they refuse loudly rather than pretend.
+// The Answers commands land in the Answers unit of Phase 1; auth check in the
+// last unit. Until then they refuse loudly rather than pretend.
 
-func runWeb(_ []string, _ string, _, stderr io.Writer) int { return notImplemented(stderr, "web") }
-func runContext(_ []string, _ string, _, stderr io.Writer) int {
-	return notImplemented(stderr, "context")
-}
 func runAnswer(_ []string, _ string, _, stderr io.Writer) int {
 	return notImplemented(stderr, "answer")
 }

@@ -33,9 +33,3 @@ func runMCP(args []string, version string, stdin io.Reader, stdout, stderr io.Wr
 	}
 	return exitOK
 }
-
-// tools builds the tool set the server exposes. Empty in the scaffold; the
-// Search and Answers units fill it in.
-func tools(_ *config.Config, _ string) []mcp.Tool {
-	return nil
-}

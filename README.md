@@ -13,13 +13,53 @@ brave-search exposes three [Brave Search API](https://brave.com/search/api/) end
 
 It is a search primitive: it returns what Brave returns, prints what the call cost, and never stores, recomposes or redistributes a result. [gem-search](https://github.com/nlink-jp/gem-search) is the agentic report generator on Vertex AI; this is the search call that needs only a Brave API key.
 
-> **Status: under development.** The scaffold builds and tests; the search commands are not implemented yet.
+> **Status: under development.** `web` and `context` work; `answer`, `research` and `auth check` are not implemented yet.
 
 ## Install
 
 ```bash
 make build  # → dist/brave-search
 ```
+
+## Usage
+
+```bash
+# Ranked results — the query need not be quoted; flags may follow it
+brave-search web go generics --count 5
+brave-search web "site:go.dev generics" --freshness pm --extra-snippets
+brave-search web --json go generics --full          # every upstream field, as JSON
+
+# Page text sized to a token budget, for grounding a model
+brave-search context "how do go generics work" --max-tokens 2048 --max-urls 5
+
+# Country / language / safesearch apply to every command
+brave-search web 生成AI --country jp --lang ja
+
+# As an MCP server (stdio) — tools: web_search, llm_context, get_usage
+brave-search mcp
+```
+
+Every result ends with what the call cost and the rate budget left:
+
+```
+cost: $0.0050 (list-price estimate) · requests: 1 · rate budget left: 0/1, 1999/2000
+```
+
+The Search endpoints are billed per request at Brave's published price, so the figure is an estimate; the Answers endpoints report their exact cost.
+
+### Configuration
+
+`~/.config/brave-search/config.toml` — see [config.example.toml](config.example.toml) for every key. Precedence is flag > environment variable > file > built-in default. Unknown keys are rejected. The built-in country and language defaults are Brave's own (`US`, `en`); set `country = "JP"` and `search_lang = "ja"` for Japanese results.
+
+### MCP server
+
+Register `brave-search mcp` with your client, for example in Claude Code:
+
+```bash
+claude mcp add brave-search -- /path/to/brave-search mcp
+```
+
+Call `get_usage` first — it is the full reference for the tools, their result schemas, the cost model and the error codes.
 
 ## Setup
 

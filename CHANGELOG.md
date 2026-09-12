@@ -8,6 +8,16 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- `web` / `web_search`: Brave Web Search with count, offset, country,
+  search language, freshness, safesearch and extra snippets; compact result
+  shape with `--full` pass-through on the CLI; every result carries `meta`
+  with the estimated cost and the rate budget left.
+- `context` / `llm_context`: Brave LLM Context with token and URL budgets,
+  source metadata folded into each chunk.
+- Local validation of every documented range before a request is spent;
+  structured errors (`invalid_arguments`, `missing_api_key`, `unauthorized`,
+  `plan_not_subscribed`, `rate_limited` with reset seconds, `upstream_error`,
+  `timeout`, `network_error`, `decode_error`).
 - Scaffold: config resolution (sectioned TOML under `[api]` / `[search]` /
   `[context]` / `[answers]`, `BRAVE_SEARCH_*` environment variables, strict
   keys, local range validation), the CLI shell with the version and help

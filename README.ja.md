@@ -13,13 +13,53 @@ brave-search は [Brave Search API](https://brave.com/search/api/) の 3 エン�
 
 これは検索プリミティブです。Brave が返したものをそのまま返し、そのコールのコストを表示し、結果を保存・再構成・再配布しません。[gem-search](https://github.com/nlink-jp/gem-search) が Vertex AI 上のエージェンティックなレポート生成器であるのに対し、こちらは Brave の API キーだけで動く検索呼び出しです。
 
-> **Status: 開発中。** スキャフォールドはビルド・テストが通りますが、検索コマンドは未実装です。
+> **Status: 開発中。** `web` と `context` は動作します。`answer`・`research`・`auth check` は未実装です。
 
 ## インストール
 
 ```bash
 make build  # → dist/brave-search
 ```
+
+## 使い方
+
+```bash
+# 順位付き結果 — クエリは引用符なしでもよく、フラグは後ろに置ける
+brave-search web go generics --count 5
+brave-search web "site:go.dev generics" --freshness pm --extra-snippets
+brave-search web --json go generics --full          # 上流の全フィールドを JSON で
+
+# モデルの接地用に、トークン予算に収めたページ本文
+brave-search context "how do go generics work" --max-tokens 2048 --max-urls 5
+
+# 国・言語・セーフサーチはすべてのコマンドに効く
+brave-search web 生成AI --country jp --lang ja
+
+# MCP サーバとして（stdio） — ツール: web_search, llm_context, get_usage
+brave-search mcp
+```
+
+すべての結果の末尾に、そのコールのコストと残りのレート枠が出ます:
+
+```
+cost: $0.0050 (list-price estimate) · requests: 1 · rate budget left: 0/1, 1999/2000
+```
+
+Search 系エンドポイントは Brave の公表単価でリクエストごとに課金されるため、この数字は見積もりです。Answers 系は正確なコストを報告します。
+
+### 設定
+
+`~/.config/brave-search/config.toml` — 全キーは [config.example.toml](config.example.toml) を参照。優先順位は フラグ > 環境変数 > ファイル > 組み込み既定。未知のキーは拒否されます。組み込みの国・言語の既定は Brave 自身の既定（`US`・`en`）なので、日本語の結果が欲しければ `country = "JP"`・`search_lang = "ja"` を設定してください。
+
+### MCP サーバ
+
+`brave-search mcp` をクライアントに登録します。Claude Code なら:
+
+```bash
+claude mcp add brave-search -- /path/to/brave-search mcp
+```
+
+最初に `get_usage` を呼んでください。ツール・結果スキーマ・コストモデル・エラーコードの完全なリファレンスです。
 
 ## セットアップ
 

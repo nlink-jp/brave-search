@@ -35,6 +35,63 @@ Brave, and every result is returned inline.
 
 ## Tools
 
+Every search tool shares four optional arguments: `country` (two-letter code
+or ALL), `search_lang` (for web_search and llm_context) or `language` (for the
+Answers tools), `freshness` (`pd` / `pw` / `pm` / `py` / `YYYY-MM-DDtoYYYY-MM-DD`)
+and `safesearch` (`off` / `moderate` / `strict`). Unset arguments take the
+operator's configured defaults (Brave's own: US, en, moderate). Every result
+ends with a `meta` object:
+
+```json
+"meta": {"requests": 1, "cost_usd": 0.005, "cost_basis": "list_price_estimate",
+         "rate_limit": {"limit": [1, 2000], "remaining": [0, 1999], "reset_seconds": [1, 86400]}}
+```
+
+`cost_basis` is `list_price_estimate` for the Search endpoints (Brave bills per
+request at its published price) and `reported_by_brave` for the Answers tools
+(Brave reports the exact figure). `rate_limit` lists one value per window —
+usually the per-second burst limit first and the monthly quota second.
+
+### `web_search`
+
+Ranked web results for one query. One billed request.
+
+| Argument | Type | Meaning |
+|---|---|---|
+| `query` | string, required | 1-400 characters, at most 50 words. Search operators (`site:`, `-term`, `"phrase"`) work. |
+| `count` | integer | Results, 1-20 (default 10). |
+| `offset` | integer | Page, 0-9. Walk further results with the same `count` while `more_results_available` is true. |
+| `country`, `search_lang`, `freshness`, `safesearch` | string | As above. |
+| `extra_snippets` | boolean | Also return up to five extra excerpts per result. |
+
+Result: `query`, `altered` (present only when Brave spell-corrected the query —
+the results then answer the altered form, so say so), `count`, `offset`,
+`more_results_available`, and `results[]` of `{rank, title, url, description,
+age, language, extra_snippets}`. The response is compact by design: the mixed
+sections Brave can return (news, videos, infobox, discussions) are not
+included, and the per-result structured data (schemas, ratings, products) is
+dropped. The CLI's `--full` exposes it; this tool does not, to keep the
+response bounded.
+
+### `llm_context`
+
+Page text pre-extracted from the top results and sized to a token budget: the
+endpoint built for grounding a model's answer. One billed request.
+
+| Argument | Type | Meaning |
+|---|---|---|
+| `query` | string, required | The query or question, 1-400 characters, at most 50 words. |
+| `count` | integer | Results to analyse, 1-50 (default 10). |
+| `country`, `search_lang`, `freshness`, `safesearch` | string | As above. |
+| `max_tokens` | integer | Token budget for the returned context, 1024-32768 (default 8192). **This is the response-size cap** — start small. |
+| `max_urls` | integer | URLs the context may draw from, 1-50 (default 20). |
+
+Result: `query`, `urls`, `snippets`, and `chunks[]` of `{url, title, hostname,
+age, snippets[]}` — one entry per URL, snippets in Brave's relevance order.
+Brave's guidance: 5 results / 2048 tokens for a simple factual question, the
+defaults for standard research, 50 / 16384 for a complex multi-source
+question.
+
 ### `get_usage`
 
 Returns this manual.
