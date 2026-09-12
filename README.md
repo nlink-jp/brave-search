@@ -13,7 +13,7 @@ brave-search exposes three [Brave Search API](https://brave.com/search/api/) end
 
 It is a search primitive: it returns what Brave returns, prints what the call cost, and never stores, recomposes or redistributes a result. [gem-search](https://github.com/nlink-jp/gem-search) is the agentic report generator on Vertex AI; this is the search call that needs only a Brave API key.
 
-> **Status: under development.** `web`, `context`, `answer` and `research` work; `auth check` is not implemented yet. Nothing has been verified against the live API yet.
+> **Status: under development.** Every command is implemented and tested offline; nothing has been verified against the live API yet.
 
 ## Install
 
@@ -78,7 +78,7 @@ Call `get_usage` first — it is the full reference for the tools, their result 
 
 1. Subscribe at <https://api-dashboard.search.brave.com/> — the **Search** plan covers `web` and `context`, the **Answers** plan covers `answer` and `research` — and create an API key.
 2. Brave issues **one key per plan**. Put the Search key in `~/.config/brave-search/config.toml` as `api_key` (or `BRAVE_SEARCH_API_KEY`) and the Answers key as `answers_api_key` (or `BRAVE_SEARCH_ANSWERS_API_KEY`) — see [config.example.toml](config.example.toml). Keys are never accepted as flags.
-3. `brave-search auth check` tells you which plans the key unlocks.
+3. `brave-search auth check` reports each key's standing — valid, rejected, plan not subscribed, or absent — and which config file was read. It probes each plan with a deliberately invalid request, which Brave refuses without billing, so the check is free.
 
 ## What the Terms of Service mean for this tool
 

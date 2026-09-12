@@ -8,6 +8,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- `auth check`: per-plan key standing (valid / rejected / not subscribed /
+  absent / unreachable) via unbilled invalid-request probes, plus the config
+  file actually read and the paths searched.
+- Live e2e suite (`make e2e`, `e2e` build tag) that measures the open
+  questions and skips cleanly without a key; `scripts/e2e.sh` for the built
+  binary's exit codes, stdout/stderr split and MCP stdio session.
 - `answer` / `answer` and `research` / `research`: Brave Answers, always
   streamed and assembled into one result — answer text, citations, Brave's
   declared blind spots (research), and `meta` with Brave's own cost report

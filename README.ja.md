@@ -13,7 +13,7 @@ brave-search は [Brave Search API](https://brave.com/search/api/) の 3 エン�
 
 これは検索プリミティブです。Brave が返したものをそのまま返し、そのコールのコストを表示し、結果を保存・再構成・再配布しません。[gem-search](https://github.com/nlink-jp/gem-search) が Vertex AI 上のエージェンティックなレポート生成器であるのに対し、こちらは Brave の API キーだけで動く検索呼び出しです。
 
-> **Status: 開発中。** `web`・`context`・`answer`・`research` は動作します。`auth check` は未実装です。実 API に対する検証はまだ行っていません。
+> **Status: 開発中。** 全コマンドを実装しオフラインでテスト済み。実 API に対する検証はまだ行っていません。
 
 ## インストール
 
@@ -78,7 +78,7 @@ claude mcp add brave-search -- /path/to/brave-search mcp
 
 1. <https://api-dashboard.search.brave.com/> で契約し — **Search** プランが `web` と `context`、**Answers** プランが `answer` と `research` を担います — API キーを作成します。
 2. Brave は**プランごとに別のキー**を発行します。Search のキーを `~/.config/brave-search/config.toml` の `api_key`（または `BRAVE_SEARCH_API_KEY`）に、Answers のキーを `answers_api_key`（または `BRAVE_SEARCH_ANSWERS_API_KEY`）に置きます — [config.example.toml](config.example.toml) 参照。キーはフラグでは受け付けません。
-3. `brave-search auth check` で、そのキーがどのプランを使えるか確認できます。
+3. `brave-search auth check` で各キーの状態 — 有効・拒否・プラン未契約・未設定 — と、どの設定ファイルが読まれたかが分かります。プランごとに意図的に不正なリクエストを送り、Brave が課金せずに拒否する応答で判定するので、この確認は無料です。
 
 ## 利用規約がこのツールに課すこと
 

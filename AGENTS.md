@@ -46,8 +46,12 @@ invented. Never paste a live response into the repository.
 manual, because the manual is what an agent reads before its first call.
 
 **Live suite** (`make e2e`, network + key required, excluded from
-`go test ./...` by the `e2e` build tag): asserts on live responses and saves
-nothing. Budget: at most 20 requests per run.
+`go test ./...` by the `e2e` build tag): `e2e/live_test.go` asserts on live
+responses and logs every measurement with a `MEASURED:` prefix — those lines
+answer the open questions below and belong in Gotchas with a date. Research
+is opt-in (`BRAVE_SEARCH_E2E_RESEARCH=1`) because it is billed per search.
+`scripts/e2e.sh` drives the built binary. Budget: about 11 requests per full
+run, 12 with research. Nothing is saved.
 
 ## Layout
 
@@ -84,8 +88,11 @@ docs/{en,ja}/                RFP (the design record) + project ADRs
 
 ## Gotchas
 
-Nothing has been measured against the live API yet. Four open questions are
-answered at the start of Phase 1 and recorded here with a date:
+Nothing has been measured against the live API yet. `auth check` rests on a
+documentation claim — that Brave refuses an invalid request with 4xx *after*
+checking the key, and bills no failed response — which
+`TestLiveProbeDistinguishesKeyFromRequest` pins. The open questions, answered
+by `make e2e` and recorded here with a date:
 
 1. ~~Does one key span the Search and Answers plans?~~ **Answered
    2026-09-12 (operator, from the account dashboard): one key per plan.**

@@ -161,9 +161,3 @@ func writeJSON(stdout, stderr io.Writer, v any) int {
 	}
 	return exitOK
 }
-
-// notImplemented is the scaffold's honest answer for a command that exists in
-// the interface but not yet in the code: a usage error, never a silent zero.
-func notImplemented(stderr io.Writer, cmd string) int {
-	return fail(stderr, exitError, "%s is not implemented yet", cmd)
-}

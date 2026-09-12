@@ -84,7 +84,7 @@ func TestEveryAdvertisedCommandDispatches(t *testing.T) {
 	isolate(t)
 	for _, cmd := range []string{"web", "context", "answer", "research", "auth"} {
 		var stdout, stderr bytes.Buffer
-		code := run([]string{cmd, "check"}, "dev", nil, &stdout, &stderr)
+		code := run([]string{cmd}, "dev", nil, &stdout, &stderr)
 		if code == exitOK && stdout.Len() == 0 {
 			t.Errorf("%s: exit 0 with no output — a silent success", cmd)
 		}
