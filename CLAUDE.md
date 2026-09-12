@@ -69,8 +69,9 @@ e2e/                    Live tests behind the `e2e` build tag
 
 ## Status
 
-Phase 1 (scaffold) — see CHANGELOG.md. Live measurements are recorded, dated,
-in AGENTS.md as they are made.
+Released (v0.1.0). Every endpoint has been measured against the live API;
+the measurements live, dated, in AGENTS.md Gotchas, and the RFP carries a
+post-implementation corrections section.
 
 ## Communication Language
 
