@@ -86,6 +86,15 @@ docs/{en,ja}/                RFP (the design record) + project ADRs
   it (since 2024-11-05) and allows a receiver to ignore it when the request
   cannot be cancelled; a dispatched upstream search cannot, and is billed
   regardless.
+- **Every tool schema is closed** (`additionalProperties: false`, organization
+  ADR-021 §10), and both halves of the contract are real: the schema stops a
+  mistyped argument at a validating client, `mcp.DecodeArgs` stops it at the
+  server. `closeSchema` is applied inside `mcp.New` — the one place every tool
+  passes through — so a tool added later cannot forget it; only the top level
+  is touched. The arch tests live in `internal/app/schema_test.go`, not
+  `internal/mcp`, for the same reason the manual meta-tests do: `internal/mcp`
+  on its own sees `get_usage` alone, so asserting there would check one tool
+  and miss four.
 
 ## Gotchas
 
