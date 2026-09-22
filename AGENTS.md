@@ -19,7 +19,7 @@ make build   # → dist/brave-search  (NEVER `go build` directly — it drops th
 make test    # go test -race -cover ./...   (fully offline)
 make e2e     # live tests against the real Brave API (network + key required)
 make check   # lint + test + build-all
-make verify-release  # gate: .notarized marker + freshness (run before upload)
+make verify-release  # gate: notarized, fresh, runs at this version, clean linux archives (run before upload)
 ```
 
 Go 1.25.0, standard library only — `go.mod` has no `require` block. Shared
