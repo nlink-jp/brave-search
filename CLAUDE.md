@@ -20,7 +20,7 @@ make e2e         # live tests against the real Brave API (network + key required
 make check       # lint + test + build-all
 ```
 
-Go 1.25+. **No external dependencies — standard library only.**
+Go 1.27.4+. **No external dependencies — standard library only.**
 
 ## Architecture
 
